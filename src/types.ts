@@ -1,4 +1,4 @@
-export interface RenderRequest {
+export interface RenderOptions {
   mermaidCode: string;
   format?: 'png' | 'svg';
   theme?: string;
@@ -7,57 +7,42 @@ export interface RenderRequest {
   height?: number;
 }
 
-export interface SaveRequest extends RenderRequest {
+export interface SaveOptions extends RenderOptions {
   localPath: string;
   filename?: string;
   createDir?: boolean;
 }
 
-export interface RenderResponse {
-  success: boolean;
-  imageUrl?: string;
-  imageId?: string;
-  format?: string;
-  error?: string;
-}
-
-export interface SaveResponse extends RenderResponse {
-  localFilePath?: string;
-}
-
-export interface BatchRenderItem {
-  mermaidCode: string;
-  format?: 'png' | 'svg';
+export interface BatchRenderItem extends RenderOptions {
   localPath?: string;
   filename?: string;
-  theme?: string;
-  backgroundColor?: string;
 }
 
-export interface BatchRenderRequest {
+export interface BatchRenderOptions {
   items: BatchRenderItem[];
   theme?: string;
   backgroundColor?: string;
 }
 
-export interface BatchRenderResponse {
+export interface RenderResult {
+  onlineUrl: string;
+  format: string;
+  width: number;
+  height: number;
+  localPath?: string;
+}
+
+export interface BatchRenderResult {
   success: boolean;
-  results: Array<{
-    success: boolean;
-    imageUrl?: string;
-    localFilePath?: string;
-    error?: string;
-  }>;
+  onlineUrl?: string;
+  localPath?: string;
   error?: string;
 }
 
-export interface MermaidConfig {
-  theme?: string;
-  backgroundColor?: string;
-  width?: number;
-  height?: number;
-  puppeteerConfig?: {
-    headless?: boolean;
-    args?: string[];
-  };
+export interface MCPToolResponse {
+  content: Array<{
+    type: 'text';
+    text: string;
+  }>;
+  isError?: boolean;
 }
