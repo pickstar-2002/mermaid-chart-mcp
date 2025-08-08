@@ -1,6 +1,6 @@
 {
   "name": "@pickstar-2002/mermaid-chart-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "🎨 A powerful Mermaid chart rendering service with MCP (Model Context Protocol) support for AI assistants",
   "main": "dist/index.js",
   "bin": {
