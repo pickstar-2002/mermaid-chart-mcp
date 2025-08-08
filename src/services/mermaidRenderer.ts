@@ -19,7 +19,12 @@ export class MermaidRenderer {
     this.imagesDir = path.join(publicDir, 'images');
     this.tempDir = path.join(process.cwd(), 'temp');
     this.baseUrl = baseUrl;
-    this.initializeDirectories();
+    // 异步初始化目录，但不阻塞构造函数
+    this.initializeDirectories().catch(error => {
+      if (process.stderr) {
+        process.stderr.write(`Failed to initialize directories: ${error.message}\n`);
+      }
+    });
   }
 
   private async initializeDirectories(): Promise<void> {

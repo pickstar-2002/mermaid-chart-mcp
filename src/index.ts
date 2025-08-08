@@ -23,13 +23,24 @@ async function main() {
 
 // 处理未捕获的异常
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  process.exit(1);
+  if (process.stderr) {
+    process.stderr.write(`Uncaught Exception: ${error.message}\n`);
+  }
+  // 在MCP模式下不要立即退出，让MCP客户端处理
+  if (!process.argv.includes('--mcp') && process.env.MCP_MODE !== 'true') {
+    process.exit(1);
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  const errorMessage = reason instanceof Error ? reason.message : String(reason);
+  if (process.stderr) {
+    process.stderr.write(`Unhandled Rejection: ${errorMessage}\n`);
+  }
+  // 在MCP模式下不要立即退出
+  if (!process.argv.includes('--mcp') && process.env.MCP_MODE !== 'true') {
+    process.exit(1);
+  }
 });
 
 // 优雅关闭

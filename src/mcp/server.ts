@@ -191,9 +191,13 @@ export class MermaidMCPServer {
             );
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (typeof process !== 'undefined' && process.stderr) {
+          process.stderr.write(`Tool execution error: ${errorMessage}\n`);
+        }
         throw new McpError(
           ErrorCode.InternalError,
-          `Tool execution failed: ${error}`
+          `Tool execution failed: ${errorMessage}`
         );
       }
     });
@@ -266,12 +270,19 @@ export class MermaidMCPServer {
   }
 
   public async start(): Promise<void> {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    
-    // 使用 stderr 输出启动信息，避免干扰 MCP 通信
-    if (typeof process !== 'undefined' && process.stderr) {
-      process.stderr.write('Mermaid MCP Server started\n');
+    try {
+      const transport = new StdioServerTransport();
+      await this.server.connect(transport);
+      
+      // 使用 stderr 输出启动信息，避免干扰 MCP 通信
+      if (typeof process !== 'undefined' && process.stderr) {
+        process.stderr.write('Mermaid MCP Server started successfully\n');
+      }
+    } catch (error) {
+      if (typeof process !== 'undefined' && process.stderr) {
+        process.stderr.write(`Failed to start MCP server: ${error}\n`);
+      }
+      throw error;
     }
   }
 }
