@@ -125,9 +125,9 @@ export class MermaidRenderer {
       // 写入临时文件
       await fs.writeFile(tempInputFile, mermaidCode, 'utf8');
 
-      // 构建 mermaid-cli 命令
-      const mmdc = path.join(process.cwd(), 'node_modules', '.bin', 'mmdc');
-      let command = `"${mmdc}" -i "${tempInputFile}" -o "${outputPath}"`;
+            // 构建 mermaid-cli 命令 - 使用绝对路径确保在正确目录执行
+            const projectRoot = process.cwd();
+            let command = `cd "${projectRoot}" && npx mmdc -i "${tempInputFile}" -o "${outputPath}"`;
 
       // 添加配置参数
       if (config.theme) {
