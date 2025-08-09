@@ -1,6 +1,6 @@
 {
   "name": "@pickstar-2002/mermaid-chart-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "🎨 基于 AI MCP 协议的 Mermaid 图表渲染器，支持将 Mermaid 代码转换为图片并提供在线访问",
   "main": "dist/mcp-server.js",
   "bin": {
