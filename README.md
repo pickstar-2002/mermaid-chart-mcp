@@ -7,6 +7,10 @@
 
 > 🚀 A powerful Mermaid chart rendering tool based on MCP (Model Context Protocol) for AI editors
 
+<a href="https://glama.ai/mcp/servers/@pickstar-2002/mermaid-chart-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@pickstar-2002/mermaid-chart-mcp/badge" alt="Mermaid Chart MCP server" />
+</a>
+
 ## ✨ Features
 
 - 🎯 **MCP Protocol Support** - Seamlessly integrates with AI editors like Cursor, Claude Desktop, WindSurf
