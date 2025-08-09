@@ -1,60 +1,56 @@
 {
   "name": "@pickstar-2002/mermaid-chart-mcp",
   "version": "1.0.0",
-  "description": "🎨 A powerful Mermaid chart rendering tool based on MCP protocol for AI editors",
-  "main": "dist/index.js",
+  "description": "🎨 基于 AI MCP 协议的 Mermaid 图表渲染器，支持将 Mermaid 代码转换为图片并提供在线访问",
+  "main": "dist/mcp-server.js",
   "bin": {
-    "mermaid-chart-mcp": "dist/index.js"
+    "mermaid-chart-mcp": "dist/mcp-server.js"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "start": "node dist/index.js",
+    "dev": "tsx src/mcp-server.ts",
+    "start": "node dist/mcp-server.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
+    "mcp",
     "mermaid",
     "chart",
     "diagram",
-    "mcp",
     "ai",
-    "visualization",
     "model-context-protocol",
-    "cursor",
-    "claude",
-    "windsurf"
+    "visualization",
+    "graph",
+    "flowchart",
+    "sequence-diagram"
   ],
   "author": "pickstar-2002",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pickstar-2002/mermaid-chart-mcp.git"
+    "url": "https://github.com/pickstar-2002/mermaid-chart-mcp.git"
   },
   "bugs": {
     "url": "https://github.com/pickstar-2002/mermaid-chart-mcp/issues"
   },
   "homepage": "https://github.com/pickstar-2002/mermaid-chart-mcp#readme",
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "files": [
-    "dist/**/*",
-    "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
-  ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
-    "axios": "^1.7.9",
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "axios": "^1.6.2",
+    "form-data": "^4.0.0",
     "fs-extra": "^11.2.0",
-    "mermaid": "^11.4.1",
-    "puppeteer": "^23.10.4",
-    "uuid": "^11.0.3"
+    "joi": "^17.11.0",
+    "puppeteer": "^21.6.1",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "^22.10.2",
-    "@types/uuid": "^10.0.0",
-    "typescript": "^5.7.2"
+    "@types/node": "^20.19.10",
+    "@types/uuid": "^9.0.7",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

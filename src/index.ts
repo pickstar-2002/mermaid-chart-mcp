@@ -1,17 +1,30 @@
 #!/usr/bin/env node
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+/**
+ * Mermaid Chart MCP Server
+ * 基于 AI MCP 协议的 Mermaid 图片生成器
+ */
+
+import { Server } from '@modelcontextprotocol/sdk/server/index';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio';
 import {
   CallToolRequestSchema,
+  ErrorCode,
   ListToolsRequestSchema,
-  Tool,
-} from '@modelcontextprotocol/sdk/types.js';
-import { MermaidRenderer } from './renderer.js';
+  McpError,
+  CallToolRequest,
+} from '@modelcontextprotocol/sdk/types';
 
-class MermaidMCPServer {
+import { MermaidChartService } from './service';
+import { 
+  MermaidRenderOptions, 
+  SaveMermaidOptions, 
+  BatchRenderOptions 
+} from './types';
+
+class MermaidChartMCPServer {
   private server: Server;
-  private renderer: MermaidRenderer;
+  private service: MermaidChartService;
 
   constructor() {
     this.server = new Server(
@@ -26,11 +39,12 @@ class MermaidMCPServer {
       }
     );
 
-    this.renderer = new MermaidRenderer();
+    this.service = new MermaidChartService();
     this.setupToolHandlers();
   }
 
   private setupToolHandlers() {
+    // 列出可用工具
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
@@ -42,32 +56,32 @@ class MermaidMCPServer {
               properties: {
                 mermaidCode: {
                   type: 'string',
-                  description: 'Mermaid 图表代码',
+                  description: 'Mermaid 图表代码'
                 },
                 format: {
                   type: 'string',
                   enum: ['png', 'svg'],
-                  description: '输出格式，默认为 png',
+                  description: '输出格式，默认为 png'
                 },
                 theme: {
                   type: 'string',
-                  description: '主题，如 default, dark, forest 等',
+                  description: '主题，如 default, dark, forest 等'
                 },
                 backgroundColor: {
                   type: 'string',
-                  description: '背景颜色，如 white, transparent 等',
+                  description: '背景颜色，如 white, transparent 等'
                 },
                 width: {
                   type: 'number',
-                  description: '图片宽度',
+                  description: '图片宽度'
                 },
                 height: {
                   type: 'number',
-                  description: '图片高度',
-                },
+                  description: '图片高度'
+                }
               },
-              required: ['mermaidCode'],
-            },
+              required: ['mermaidCode']
+            }
           },
           {
             name: 'saveMermaid',
@@ -77,44 +91,44 @@ class MermaidMCPServer {
               properties: {
                 mermaidCode: {
                   type: 'string',
-                  description: 'Mermaid 图表代码',
+                  description: 'Mermaid 图表代码'
                 },
                 localPath: {
                   type: 'string',
-                  description: '本地保存目录路径',
+                  description: '本地保存目录路径'
                 },
                 filename: {
                   type: 'string',
-                  description: '文件名（可选，不指定则自动生成）',
+                  description: '文件名（可选，不指定则自动生成）'
                 },
                 format: {
                   type: 'string',
                   enum: ['png', 'svg'],
-                  description: '输出格式，默认为 png',
+                  description: '输出格式，默认为 png'
                 },
                 createDir: {
                   type: 'boolean',
-                  description: '如果目录不存在是否创建，默认为 true',
+                  description: '如果目录不存在是否创建，默认为 true'
                 },
                 theme: {
                   type: 'string',
-                  description: '主题，如 default, dark, forest 等',
+                  description: '主题，如 default, dark, forest 等'
                 },
                 backgroundColor: {
                   type: 'string',
-                  description: '背景颜色，如 white, transparent 等',
+                  description: '背景颜色，如 white, transparent 等'
                 },
                 width: {
                   type: 'number',
-                  description: '图片宽度',
+                  description: '图片宽度'
                 },
                 height: {
                   type: 'number',
-                  description: '图片高度',
-                },
+                  description: '图片高度'
+                }
               },
-              required: ['mermaidCode', 'localPath'],
-            },
+              required: ['mermaidCode', 'localPath']
+            }
           },
           {
             name: 'batchRenderMermaid',
@@ -129,148 +143,145 @@ class MermaidMCPServer {
                     properties: {
                       mermaidCode: {
                         type: 'string',
-                        description: 'Mermaid 图表代码',
+                        description: 'Mermaid 图表代码'
                       },
                       format: {
                         type: 'string',
                         enum: ['png', 'svg'],
-                        description: '输出格式',
+                        description: '输出格式'
                       },
                       localPath: {
                         type: 'string',
-                        description: '本地保存路径（可选）',
+                        description: '本地保存路径（可选）'
                       },
                       filename: {
                         type: 'string',
-                        description: '文件名（可选）',
+                        description: '文件名（可选）'
                       },
                       theme: {
                         type: 'string',
-                        description: '主题',
+                        description: '主题'
                       },
                       backgroundColor: {
                         type: 'string',
-                        description: '背景颜色',
-                      },
+                        description: '背景颜色'
+                      }
                     },
-                    required: ['mermaidCode'],
+                    required: ['mermaidCode']
                   },
-                  description: '要处理的 Mermaid 代码列表',
+                  description: '要处理的 Mermaid 代码列表'
                 },
                 theme: {
                   type: 'string',
-                  description: '全局主题设置',
+                  description: '全局主题设置'
                 },
                 backgroundColor: {
                   type: 'string',
-                  description: '全局背景颜色设置',
-                },
+                  description: '全局背景颜色设置'
+                }
               },
-              required: ['items'],
-            },
-          },
-        ] as Tool[],
+              required: ['items']
+            }
+          }
+        ],
       };
     });
 
-    this.server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+    // 处理工具调用
+    this.server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
       const { name, arguments: args } = request.params;
 
       try {
         switch (name) {
-          case 'renderMermaid':
-            return await this.handleRenderMermaid(args);
-          case 'saveMermaid':
-            return await this.handleSaveMermaid(args);
-          case 'batchRenderMermaid':
-            return await this.handleBatchRenderMermaid(args);
+          case 'renderMermaid': {
+            const options = args as unknown as MermaidRenderOptions;
+            const result = await this.service.renderMermaid(options);
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'saveMermaid': {
+            const options = args as unknown as SaveMermaidOptions;
+            const result = await this.service.saveMermaid(options);
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'batchRenderMermaid': {
+            const options = args as unknown as BatchRenderOptions;
+            const result = await this.service.batchRenderMermaid(options);
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+
           default:
-            throw new Error(`Unknown tool: ${name}`);
+            throw new McpError(
+              ErrorCode.MethodNotFound,
+              `未知工具: ${name}`
+            );
         }
       } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
+        const errorMessage = error instanceof Error ? error.message : '未知错误';
+        throw new McpError(
+          ErrorCode.InternalError,
+          `工具执行失败: ${errorMessage}`
+        );
       }
     });
   }
 
-  private async handleRenderMermaid(args: any) {
-    const result = await this.renderer.renderMermaid({
-      mermaidCode: args.mermaidCode,
-      format: args.format || 'png',
-      theme: args.theme,
-      backgroundColor: args.backgroundColor,
-      width: args.width,
-      height: args.height,
-    });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Mermaid 图表已成功渲染！\n\n在线访问链接: ${result.onlineUrl}\n格式: ${result.format}\n尺寸: ${result.width}x${result.height}`,
-        },
-      ],
-    };
-  }
-
-  private async handleSaveMermaid(args: any) {
-    const result = await this.renderer.saveMermaid({
-      mermaidCode: args.mermaidCode,
-      localPath: args.localPath,
-      filename: args.filename,
-      format: args.format || 'png',
-      createDir: args.createDir !== false,
-      theme: args.theme,
-      backgroundColor: args.backgroundColor,
-      width: args.width,
-      height: args.height,
-    });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Mermaid 图表已成功渲染并保存！\n\n本地路径: ${result.localPath}\n在线访问链接: ${result.onlineUrl}\n格式: ${result.format}\n尺寸: ${result.width}x${result.height}`,
-        },
-      ],
-    };
-  }
-
-  private async handleBatchRenderMermaid(args: any) {
-    const results = await this.renderer.batchRenderMermaid({
-      items: args.items,
-      theme: args.theme,
-      backgroundColor: args.backgroundColor,
-    });
-
-    const summary = results.map((result, index) => 
-      `${index + 1}. ${result.success ? '成功' : '失败'}: ${result.success ? result.onlineUrl : result.error}`
-    ).join('\n');
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `批量渲染完成！\n\n处理结果:\n${summary}\n\n成功: ${results.filter(r => r.success).length}/${results.length}`,
-        },
-      ],
-    };
-  }
-
   async run() {
+    // 初始化服务
+    await this.service.initialize();
+
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('Mermaid Chart MCP Server running on stdio');
+
+    // 优雅关闭处理
+    process.on('SIGINT', async () => {
+      await this.service.close();
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', async () => {
+      await this.service.close();
+      process.exit(0);
+    });
   }
 }
 
-const server = new MermaidMCPServer();
-server.run().catch(console.error);
+// 启动服务器
+async function main() {
+  const server = new MermaidChartMCPServer();
+  await server.run();
+}
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('服务器启动失败:', error);
+    process.exit(1);
+  });
+}
+
+export { MermaidChartMCPServer };
