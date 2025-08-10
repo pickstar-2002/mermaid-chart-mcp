@@ -68,4 +68,5 @@ export interface BatchMermaidRenderResult {
   successCount: number;
   failureCount: number;
   totalTime: number;
+  error?: string;
 }
