@@ -1,6 +1,6 @@
 {
   "name": "@pickstar-2002/mermaid-chart-mcp",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "MCP server for rendering Mermaid charts to images",
   "main": "dist/index.js",
   "bin": {
