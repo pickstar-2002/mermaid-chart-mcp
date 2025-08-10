@@ -1,11 +1,11 @@
 {
   "name": "@pickstar-2002/mermaid-chart-mcp",
-  "version": "2.0.9",
+  "version": "2.0.14",
   "description": "🎨 A Model Context Protocol (MCP) server for rendering beautiful Mermaid charts with online hosting support",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "@pickstar-2002/mermaid-chart-mcp": "dist/index.js"
+    "mermaid-chart-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

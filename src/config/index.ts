@@ -6,9 +6,9 @@ import * as os from 'node:os';
  * 默认服务器配置
  */
 export const DEFAULT_CONFIG: ServerConfig = {
-  serverPort: 3000,
+  serverPort: 3001,
   serverHost: 'localhost',
-  enableStaticServer: true,
+  enableStaticServer: false,
   defaultOutputDir: path.join(process.cwd(), 'output'),
   tempDir: path.join(os.tmpdir(), 'mermaid-chart-mcp'),
   imageHosting: {
