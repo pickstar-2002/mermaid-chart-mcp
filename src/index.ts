@@ -1,39 +1,30 @@
 #!/usr/bin/env node
 
-import { MermaidChartMcpServer } from './mcp-server.js';
+import { MermaidMCPServer } from './mcp-server';
 
-/**
- * 主入口文件
- */
 async function main() {
-  const server = new MermaidChartMcpServer();
-
-  // 处理进程退出信号
-  process.on('SIGINT', async () => {
-    console.error('Received SIGINT, shutting down gracefully...');
-    await server.stop();
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', async () => {
-    console.error('Received SIGTERM, shutting down gracefully...');
-    await server.stop();
-    process.exit(0);
-  });
-
-  // 启动服务器
+  const server = new MermaidMCPServer();
+  
+  console.error('Mermaid Chart MCP Server 启动中...');
+  console.error('版本: 1.0.0');
+  console.error('支持的功能:');
+  console.error('- 渲染 Mermaid 图表为 PNG/SVG');
+  console.error('- 批量渲染');
+  console.error('- 静态文件服务器');
+  console.error('- 在线链接生成');
+  console.error('');
+  
   try {
-    await server.start();
+    await server.run();
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('服务器启动失败:', error);
     process.exit(1);
   }
 }
 
-// 运行主函数
-main().catch((error) => {
-  console.error('Unhandled error:', error);
-  process.exit(1);
-});
-
-export { MermaidChartMcpServer };
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('未处理的错误:', error);
+    process.exit(1);
+  });
+}

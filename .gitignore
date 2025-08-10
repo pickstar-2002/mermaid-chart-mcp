@@ -8,6 +8,12 @@ yarn-error.log*
 dist/
 build/
 
+# Output files
+mermaid-output/
+output/
+*.png
+*.svg
+
 # Environment variables
 .env
 .env.local
@@ -20,7 +26,6 @@ build/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
@@ -39,11 +44,12 @@ pids/
 # Coverage directory used by tools like istanbul
 coverage/
 
-# Output directories
-output/
+# Temporary folders
+tmp/
 temp/
-charts/
 
-# Temporary files
-*.tmp
-*.temp
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history

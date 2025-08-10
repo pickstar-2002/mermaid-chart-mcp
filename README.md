@@ -1,54 +1,46 @@
-# 🎨 Mermaid Chart MCP
+# 🎨 Mermaid Chart MCP Server
 
 [![npm version](https://badge.fury.io/js/@pickstar-2002%2Fmermaid-chart-mcp.svg)](https://badge.fury.io/js/@pickstar-2002%2Fmermaid-chart-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-blue.svg)](https://modelcontextprotocol.io/)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 
-> 🚀 A powerful Model Context Protocol (MCP) server for rendering beautiful Mermaid charts with online hosting support
+一个基于 MCP (Model Context Protocol) 协议的 Mermaid 图表渲染服务器，支持将 Mermaid 代码转换为高质量的图片文件或在线链接。🚀
 
-## ✨ Features
+## ✨ 功能特性
 
-- 🎯 **Single & Batch Rendering** - Render individual charts or process multiple diagrams at once
-- 🖼️ **Multiple Formats** - Support for PNG and SVG output formats
-- 🌐 **Online Hosting** - Automatic static server with shareable links
-- 🎨 **Rich Styling** - Full support for Mermaid themes, colors, and custom styles
-- 🌍 **Internationalization** - Perfect support for Chinese and other languages
-- ⚡ **High Performance** - Optimized rendering with configurable quality settings
-- 🔧 **Easy Integration** - Seamless integration with AI IDEs and MCP clients
+- 🎨 **多格式支持**: 支持 PNG 和 SVG 格式输出
+- 🚀 **批量渲染**: 支持一次性渲染多个图表
+- 🌐 **在线链接**: 可生成图片的在线访问链接
+- 🎯 **高度可配置**: 支持自定义主题、尺寸、DPI 等参数
+- 📦 **开箱即用**: 所有依赖已内置，无需额外配置
+- 🔧 **TypeScript**: 完整的类型安全支持
 
-## 📦 Installation
+## 📦 安装
 
-### Quick Start (Recommended)
-
-```bash
-npx @pickstar-2002/mermaid-chart-mcp@latest
-```
-
-### Global Installation
+推荐使用 `@latest` 标签获取最新版本：
 
 ```bash
 npm install -g @pickstar-2002/mermaid-chart-mcp@latest
 ```
 
-### Local Installation
+或者直接运行（推荐）：
 
 ```bash
-npm install @pickstar-2002/mermaid-chart-mcp@latest
+npx @pickstar-2002/mermaid-chart-mcp@latest
 ```
 
-## 🚀 Usage
+## 🚀 使用方法
 
-### IDE Configuration
+### 在 IDE 中配置 MCP 服务
 
-Add the following configuration to your MCP-compatible IDE:
-
-#### For Cursor, WindSurf, CodeBuddy, etc.
+#### Claude Desktop
+在 `claude_desktop_config.json` 中添加：
 
 ```json
 {
   "mcpServers": {
-    "mermaid-chart-mcp": {
+    "mermaid-chart": {
       "command": "npx",
       "args": ["@pickstar-2002/mermaid-chart-mcp@latest"]
     }
@@ -56,192 +48,231 @@ Add the following configuration to your MCP-compatible IDE:
 }
 ```
 
-#### Alternative Configuration
+#### Cursor
+在 `.cursorrules` 或项目配置中添加：
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "mermaid-chart": {
+        "command": "npx",
+        "args": ["@pickstar-2002/mermaid-chart-mcp@latest"]
+      }
+    }
+  }
+}
+```
+
+#### WindSurf
+在 MCP 配置中添加：
 
 ```json
 {
   "mcpServers": {
-    "mermaid-chart-mcp": {
-      "command": "node",
-      "args": ["path/to/node_modules/@pickstar-2002/mermaid-chart-mcp/dist/index.js"]
+    "mermaid-chart": {
+      "command": "npx",
+      "args": ["@pickstar-2002/mermaid-chart-mcp@latest"]
     }
   }
 }
 ```
 
-### Basic Usage Examples
+#### 其他支持 MCP 的 IDE
+按照相应 IDE 的 MCP 配置方式，使用以下命令：
 
-#### Single Chart Rendering
+```bash
+npx @pickstar-2002/mermaid-chart-mcp@latest
+```
 
-```javascript
-// Render a flowchart to PNG
+## 🛠️ 可用工具
+
+### 1. render_mermaid - 渲染单个图表
+
+```typescript
 {
-  "code": "graph TD\n    A[Start] --> B[Process]\n    B --> C[End]",
-  "options": {
-    "format": "png",
-    "generateOnlineLink": true,
-    "theme": "default"
+  code: string,           // Mermaid 代码
+  options?: {
+    format?: 'png' | 'svg',        // 输出格式，默认 png
+    outputPath?: string,           // 输出路径（可选）
+    generateOnlineLink?: boolean,  // 是否生成在线链接
+    dpi?: number,                  // DPI 设置（PNG），默认 300
+    width?: number,                // 图片宽度，默认 1200
+    height?: number,               // 图片高度，默认 800
+    backgroundColor?: string,      // 背景颜色，默认 white
+    theme?: 'default' | 'dark' | 'forest' | 'neutral'  // 主题
   }
 }
 ```
 
-#### Batch Rendering
+### 2. batch_render_mermaid - 批量渲染
+
+```typescript
+{
+  requests: Array<{
+    code: string,
+    options?: RenderOptions
+  }>,
+  globalOptions?: RenderOptions  // 全局选项
+}
+```
+
+### 3. start_static_server - 启动静态服务器
+
+```typescript
+{
+  port?: number,    // 端口号，默认 3000
+  host?: string     // 主机地址，默认 localhost
+}
+```
+
+### 4. stop_static_server - 停止静态服务器
+
+### 5. update_config - 更新配置
+
+### 6. get_config - 获取当前配置
+
+## 💡 使用示例
+
+### 基本渲染
 
 ```javascript
-// Render multiple charts at once
-{
-  "requests": [
+// 渲染流程图
+const result = await render_mermaid({
+  code: `
+    graph TD
+      A[开始] --> B{判断条件}
+      B -->|是| C[执行操作]
+      B -->|否| D[结束]
+      C --> D
+  `,
+  options: {
+    format: 'png',
+    theme: 'default'
+  }
+});
+```
+
+### 生成在线链接
+
+```javascript
+const result = await render_mermaid({
+  code: `
+    sequenceDiagram
+      participant A as 用户
+      participant B as 系统
+      A->>B: 发送请求
+      B-->>A: 返回响应
+  `,
+  options: {
+    generateOnlineLink: true,
+    theme: 'dark'
+  }
+});
+
+console.log(result.onlineLink); // http://localhost:3000/files/mermaid-xxx.png
+```
+
+### 批量渲染
+
+```javascript
+const result = await batch_render_mermaid({
+  requests: [
     {
-      "code": "graph LR\n    A --> B --> C",
-      "options": { "format": "png" }
+      code: "graph TD; A-->B;",
+      options: { theme: 'default' }
     },
     {
-      "code": "sequenceDiagram\n    Alice->>Bob: Hello",
-      "options": { "format": "svg" }
+      code: "pie title 数据分布; \"A\" : 386; \"B\" : 85;",
+      options: { theme: 'forest' }
     }
   ],
-  "globalOptions": {
-    "theme": "dark",
-    "backgroundColor": "transparent"
+  globalOptions: {
+    format: 'svg',
+    generateOnlineLink: true
   }
-}
+});
 ```
 
-## 🛠️ API Reference
+## 📊 支持的 Mermaid 图表类型
 
-### Tools Available
+- 📈 流程图 (Flowchart)
+- 🔄 序列图 (Sequence Diagram)
+- 📅 甘特图 (Gantt Chart)
+- 🏗️ 类图 (Class Diagram)
+- 🔀 状态图 (State Diagram)
+- 🥧 饼图 (Pie Chart)
+- 🗺️ 用户旅程图 (User Journey)
+- 🌳 Git 图 (Git Graph)
+- 🗃️ ER 图 (Entity Relationship Diagram)
+- 📋 需求图 (Requirement Diagram)
 
-#### `render_mermaid`
-Render a single Mermaid diagram to image.
+## 🎨 主题支持
 
-**Parameters:**
-- `code` (string): Mermaid diagram code
-- `options` (object, optional): Rendering options
-  - `format` (string): Output format (`png` | `svg`)
-  - `outputPath` (string): Custom output file path
-  - `generateOnlineLink` (boolean): Generate shareable online link
-  - `theme` (string): Mermaid theme (`default` | `dark` | `forest` | `neutral`)
-  - `backgroundColor` (string): Background color
-  - `width` (number): Image width in pixels
-  - `height` (number): Image height in pixels
-  - `dpi` (number): DPI for PNG output
+- `default`: 默认主题 ⚪
+- `dark`: 深色主题 ⚫
+- `forest`: 森林主题 🌲
+- `neutral`: 中性主题 🔘
 
-#### `batch_render_mermaid`
-Render multiple Mermaid diagrams in batch.
+## 🏗️ 技术架构
 
-**Parameters:**
-- `requests` (array): Array of render requests
-- `globalOptions` (object, optional): Global options applied to all requests
+- **MCP SDK**: 基于官方 @modelcontextprotocol/sdk
+- **渲染引擎**: Puppeteer + Mermaid.js
+- **图像处理**: Sharp
+- **静态服务**: Express.js
+- **类型安全**: 完整的 TypeScript 支持
 
-#### `start_static_server`
-Start the built-in static file server for online hosting.
+## 🔧 开发
 
-#### `stop_static_server`
-Stop the static file server.
+```bash
+# 克隆项目
+git clone https://github.com/pickstar-2002/mermaid-chart-mcp.git
+cd mermaid-chart-mcp
 
-#### `update_config`
-Update server configuration.
+# 安装依赖
+npm install
 
-#### `get_config`
-Get current server configuration.
+# 开发模式
+npm run dev
 
-## 🎨 Supported Diagram Types
+# 构建
+npm run build
 
-- 📊 **Flowcharts** - Process flows and decision trees
-- 🔄 **Sequence Diagrams** - Interaction flows between entities
-- 📈 **Gantt Charts** - Project timelines and schedules
-- 🥧 **Pie Charts** - Data distribution visualization
-- 🌳 **Git Graphs** - Version control workflows
-- 📋 **Class Diagrams** - Object-oriented design
-- 🗺️ **User Journey** - User experience mapping
-- ⏰ **Timeline** - Chronological events
-- 📊 **Quadrant Chart** - Priority matrices
-- 🏛️ **C4 Diagrams** - Software architecture
-
-## 🎯 Advanced Features
-
-### Custom Styling
-
-```mermaid
-graph TD
-    A[User Layer] --> B[AI Layer]
-    B --> C[Device Layer]
-    
-    style A fill:#e1f5fe
-    style B fill:#f3e5f5
-    style C fill:#f1f8e9
-    
-    classDef userLayer fill:#e1f5fe,stroke:#01579b
-    class A userLayer
+# 启动
+npm start
 ```
 
-### Online Link Generation
+## 📝 更新日志
 
-Enable `generateOnlineLink: true` to automatically:
-- 🌐 Start a local static server
-- 📎 Generate shareable URLs
-- 🔗 Access charts from anywhere
+### v1.0.0
+- 🎉 初始版本发布
+- ✅ 支持 PNG/SVG 格式输出
+- ✅ 支持批量渲染
+- ✅ 支持在线链接生成
+- ✅ 支持多种主题和自定义配置
 
-### Batch Processing
+## 🤝 贡献
 
-Process multiple diagrams efficiently:
-- ⚡ Concurrent rendering
-- 🎛️ Global configuration options
-- 📊 Detailed success/failure reporting
+欢迎提交 Issue 和 Pull Request！
 
-## 🔧 Configuration
+1. Fork 本项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 打开 Pull Request
 
-### Default Settings
+## 📄 许可证
 
-```json
-{
-  "tempDir": "./temp",
-  "defaultOutputDir": "./output",
-  "serverPort": 3000,
-  "serverHost": "localhost",
-  "enableStaticServer": true,
-  "maxConcurrentRenders": 5
-}
-```
+本项目基于 MIT 许可证开源 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-### Environment Variables
-
-- `MERMAID_TEMP_DIR` - Temporary files directory
-- `MERMAID_OUTPUT_DIR` - Default output directory
-- `MERMAID_SERVER_PORT` - Static server port
-- `MERMAID_MAX_CONCURRENT` - Maximum concurrent renders
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👨‍💻 Author
+## 👨‍💻 作者
 
 **pickstar-2002**
 
-- 📧 Email: [Contact via GitHub](https://github.com/pickstar-2002)
-- 🐙 GitHub: [@pickstar-2002](https://github.com/pickstar-2002)
-- 💬 微信: pickstar_loveXX
+## 📞 联系方式
 
-## 🙏 Acknowledgments
-
-- [Mermaid.js](https://mermaid.js.org/) - For the amazing diagramming syntax
-- [Model Context Protocol](https://modelcontextprotocol.io/) - For the MCP specification
-- All contributors who help improve this project
+微信: pickstar_loveXX
 
 ---
 
-<div align="center">
-  <p>Made with ❤️ by pickstar-2002</p>
-  <p>⭐ Star this repo if you find it helpful!</p>
-</div>
+⭐ 如果这个项目对你有帮助，请给它一个星标！
