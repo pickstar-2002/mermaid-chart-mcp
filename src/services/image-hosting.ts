@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import FormData from 'form-data';
 import * as fs from 'fs-extra';
-import { configManager } from '../config';
+import { configManager } from '../config/index.js';
 
 /**
  * 图床上传服务

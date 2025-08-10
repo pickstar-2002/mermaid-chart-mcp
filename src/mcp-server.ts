@@ -6,16 +6,16 @@ import {
   Tool,
   CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
-import { MermaidRenderer } from './renderer/mermaid-renderer';
-import { StaticFileServer } from './services/static-server';
-import { ImageHostingService } from './services/image-hosting';
-import { configManager } from './config';
+import { MermaidRenderer } from './renderer/mermaid-renderer.js';
+import { StaticFileServer } from './services/static-server.js';
+import { ImageHostingService } from './services/image-hosting.js';
+import { configManager } from './config/index.js';
 import {
   MermaidRenderRequest,
   BatchMermaidRenderRequest,
   MermaidRenderResult,
   BatchMermaidRenderResult,
-} from './types';
+} from './types/index.js';
 
 /**
  * Mermaid Chart MCP Server

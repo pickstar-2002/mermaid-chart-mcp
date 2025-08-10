@@ -2,8 +2,8 @@ import * as fs from 'fs-extra';
 import * as path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'node:child_process';
-import { MermaidRenderOptions, MermaidRenderResult } from '../types';
-import { configManager } from '../config';
+import { MermaidRenderOptions, MermaidRenderResult } from '../types/index.js';
+import { configManager } from '../config/index.js';
 
 /**
  * Mermaid 渲染器

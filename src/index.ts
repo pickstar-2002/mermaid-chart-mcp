@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { MermaidChartMcpServer } from './mcp-server';
+import { MermaidChartMcpServer } from './mcp-server.js';
 
 /**
  * 主入口文件
@@ -31,11 +31,9 @@ async function main() {
 }
 
 // 运行主函数
-if (require.main === module) {
-  main().catch((error) => {
-    console.error('Unhandled error:', error);
-    process.exit(1);
-  });
-}
+main().catch((error) => {
+  console.error('Unhandled error:', error);
+  process.exit(1);
+});
 
 export { MermaidChartMcpServer };

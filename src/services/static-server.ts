@@ -1,7 +1,7 @@
 import express from 'express';
 import * as path from 'node:path';
 import { Server } from 'node:http';
-import { configManager } from '../config';
+import { configManager } from '../config/index.js';
 
 /**
  * 静态文件服务器
