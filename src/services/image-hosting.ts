@@ -1,31 +1,24 @@
-import axios, { AxiosError } from 'axios';
-import FormData from 'form-data';
-import * as fs from 'fs-extra';
 import { configManager } from '../config/index.js';
+import fs from 'fs-extra';
+import * as path from 'path';
 
 /**
- * 图床上传服务
+ * 图床服务
  */
 export class ImageHostingService {
   /**
    * 上传图片到图床
    */
   async uploadImage(filePath: string): Promise<string> {
-    const config = configManager.getConfig();
-    
-    if (!config.imageHosting) {
-      throw new Error('Image hosting not configured');
-    }
+    const config = configManager.get('imageHosting');
 
-    switch (config.imageHosting.type) {
+    switch (config.type) {
       case 'imgur':
         return this.uploadToImgur(filePath);
-      case 'sm.ms':
-        return this.uploadToSmMs(filePath);
       case 'custom':
         return this.uploadToCustom(filePath);
       default:
-        throw new Error(`Unsupported image hosting type: ${config.imageHosting.type}`);
+        throw new Error(`Unsupported image hosting type: ${config.type}`);
     }
   }
 
@@ -33,79 +26,43 @@ export class ImageHostingService {
    * 上传到 Imgur
    */
   private async uploadToImgur(filePath: string): Promise<string> {
-    const config = configManager.getConfig();
-    const apiKey = config.imageHosting?.apiKey;
-
-    if (!apiKey) {
+    const config = configManager.get('imageHosting');
+    
+    if (!config.apiKey) {
       throw new Error('Imgur API key not configured');
     }
 
     try {
+      // 读取文件
       const imageBuffer = await fs.readFile(filePath);
       const base64Image = imageBuffer.toString('base64');
 
-      const response = await axios.post(
-        'https://api.imgur.com/3/image',
-        {
+      // 发送到 Imgur API
+      const response = await fetch('https://api.imgur.com/3/image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Client-ID ${config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           image: base64Image,
           type: 'base64',
-        },
-        {
-          headers: {
-            Authorization: `Client-ID ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (response.data.success) {
-        return response.data.data.link;
-      } else {
-        throw new Error(`Imgur upload failed: ${response.data.data.error}`);
-      }
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<any>;
-        throw new Error(`Imgur upload failed: ${axiosError.response?.data?.data?.error || axiosError.message}`);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * 上传到 SM.MS
-   */
-  private async uploadToSmMs(filePath: string): Promise<string> {
-    const config = configManager.getConfig();
-    const apiKey = config.imageHosting?.apiKey;
-
-    try {
-      const formData = new FormData();
-      formData.append('smfile', fs.createReadStream(filePath));
-
-      const headers: Record<string, string> = {
-        ...formData.getHeaders(),
-      };
-
-      if (apiKey) {
-        headers['Authorization'] = apiKey;
-      }
-
-      const response = await axios.post('https://sm.ms/api/v2/upload', formData, {
-        headers,
+        }),
       });
 
-      if (response.data.success) {
-        return response.data.data.url;
-      } else {
-        throw new Error(`SM.MS upload failed: ${response.data.message}`);
+      if (!response.ok) {
+        throw new Error(`Imgur API error: ${response.status} ${response.statusText}`);
       }
+
+      const data = await response.json() as any;
+      
+      if (!data.success) {
+        throw new Error(`Imgur upload failed: ${data.data?.error || 'Unknown error'}`);
+      }
+
+      return data.data.link;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<any>;
-        throw new Error(`SM.MS upload failed: ${axiosError.response?.data?.message || axiosError.message}`);
-      }
-      throw error;
+      throw new Error(`Failed to upload to Imgur: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -113,57 +70,67 @@ export class ImageHostingService {
    * 上传到自定义图床
    */
   private async uploadToCustom(filePath: string): Promise<string> {
-    const config = configManager.getConfig();
-    const uploadUrl = config.imageHosting?.uploadUrl;
-    const headers = config.imageHosting?.headers || {};
-
-    if (!uploadUrl) {
+    const config = configManager.get('imageHosting');
+    
+    if (!config.uploadUrl) {
       throw new Error('Custom upload URL not configured');
     }
 
     try {
+      // 创建 FormData
       const formData = new FormData();
-      formData.append('file', fs.createReadStream(filePath));
+      const fileBuffer = await fs.readFile(filePath);
+      const fileName = path.basename(filePath);
+      
+      // 创建 Blob 对象
+      const blob = new Blob([fileBuffer], { 
+        type: this.getMimeType(fileName) 
+      });
+      
+      formData.append('file', blob, fileName);
 
-      const response = await axios.post(uploadUrl, formData, {
-        headers: {
-          ...formData.getHeaders(),
-          ...headers,
-        },
+      // 发送请求
+      const response = await fetch(config.uploadUrl, {
+        method: 'POST',
+        body: formData,
       });
 
-      // 假设自定义图床返回格式为 { url: string }
-      // 用户可以根据实际情况调整
-      if (response.data.url) {
-        return response.data.url;
-      } else {
-        throw new Error('Custom upload failed: No URL in response');
+      if (!response.ok) {
+        throw new Error(`Custom upload API error: ${response.status} ${response.statusText}`);
       }
+
+      const data = await response.json() as any;
+      
+      // 假设自定义API返回 { url: "..." } 格式
+      if (!data.url) {
+        throw new Error('Custom upload API did not return URL');
+      }
+
+      return data.url;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<any>;
-        throw new Error(`Custom upload failed: ${axiosError.response?.data?.message || axiosError.message}`);
-      }
-      throw error;
+      throw new Error(`Failed to upload to custom service: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   /**
-   * 批量上传图片
+   * 获取MIME类型
    */
-  async uploadImages(filePaths: string[]): Promise<string[]> {
-    const results: string[] = [];
-
-    for (const filePath of filePaths) {
-      try {
-        const url = await this.uploadImage(filePath);
-        results.push(url);
-      } catch (error) {
-        console.error(`Failed to upload ${filePath}:`, error);
-        results.push(''); // 失败时推入空字符串
-      }
+  private getMimeType(fileName: string): string {
+    const ext = path.extname(fileName).toLowerCase();
+    switch (ext) {
+      case '.png':
+        return 'image/png';
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.svg':
+        return 'image/svg+xml';
+      case '.gif':
+        return 'image/gif';
+      case '.webp':
+        return 'image/webp';
+      default:
+        return 'application/octet-stream';
     }
-
-    return results;
   }
 }

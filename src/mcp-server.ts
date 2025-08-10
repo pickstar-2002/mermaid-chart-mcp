@@ -27,10 +27,28 @@ export class MermaidChartMcpServer {
   private imageHosting: ImageHostingService;
 
   constructor() {
+    // 动态读取版本号
+    let version = 'latest';
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const packagePath = path.join(__dirname, '../package.json');
+      const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+      version = packageJson.version;
+    } catch (error) {
+      console.error('Failed to read version from package.json:', error instanceof Error ? error.message : String(error));
+      version = '2.0.5'; // 使用固定版本作为后备
+    }
+
     this.server = new Server(
       {
         name: 'mermaid-chart-mcp',
-        version: '1.0.0',
+        version,
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
       }
     );
 

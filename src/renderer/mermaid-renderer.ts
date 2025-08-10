@@ -1,9 +1,12 @@
-import * as fs from 'fs-extra';
-import * as path from 'node:path';
-import { v4 as uuidv4 } from 'uuid';
-import { spawn } from 'node:child_process';
 import { MermaidRenderOptions, MermaidRenderResult } from '../types/index.js';
 import { configManager } from '../config/index.js';
+import fs from 'fs-extra';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 /**
  * Mermaid 渲染器
@@ -12,7 +15,7 @@ export class MermaidRenderer {
   private tempDir: string;
 
   constructor() {
-    this.tempDir = configManager.get('tempDir') || path.join(process.cwd(), 'temp');
+    this.tempDir = configManager.get('tempDir');
     this.ensureTempDir();
   }
 
@@ -20,163 +23,171 @@ export class MermaidRenderer {
    * 确保临时目录存在
    */
   private async ensureTempDir(): Promise<void> {
-    await fs.ensureDir(this.tempDir);
-  }
-
-  /**
-   * 执行 Mermaid CLI 渲染
-   */
-  private async executeRender(
-    inputFile: string,
-    outputFile: string,
-    options: MermaidRenderOptions & { format: 'png' | 'svg' }
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const args = [
-        '-i', inputFile,
-        '-o', outputFile,
-        '-t', options.theme || 'default',
-        '-b', options.backgroundColor || 'white'
-      ];
-
-      if (options.format === 'png') {
-        args.push('-s', String(options.dpi ? options.dpi / 96 : 3)); // 缩放因子
-        if (options.width) args.push('-w', options.width.toString());
-        if (options.height) args.push('-H', options.height.toString());
-      }
-
-      const isWindows = process.platform === 'win32';
-      const command = isWindows ? 'npx.cmd' : 'npx';
-      
-      const mmdc = spawn(command, ['@mermaid-js/mermaid-cli', ...args], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: isWindows
-      });
-
-      let stderr = '';
-
-      mmdc.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      mmdc.on('close', (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(new Error(`Mermaid CLI failed with code ${code}: ${stderr}`));
-        }
-      });
-
-      mmdc.on('error', (error) => {
-        reject(new Error(`Failed to spawn mermaid CLI: ${error.message}`));
-      });
-    });
+    try {
+      await fs.ensureDir(this.tempDir);
+    } catch (error) {
+      console.warn('Failed to create temp directory:', error);
+    }
   }
 
   /**
    * 渲染单个 Mermaid 图表
    */
-  async renderSingle(
-    code: string,
-    options: MermaidRenderOptions = {}
-  ): Promise<MermaidRenderResult> {
+  async renderSingle(code: string, options: MermaidRenderOptions = {}): Promise<MermaidRenderResult> {
     const startTime = Date.now();
-    const result: MermaidRenderResult = {
-      originalCode: code,
-      success: false,
-    };
+    const format = options.format || 'png';
+    const outputPath = options.outputPath || this.generateOutputPath(format);
+
+    console.error(`[MCP Debug] Starting render - Format: ${format}, Output: ${outputPath}`);
+    console.error(`[MCP Debug] Mermaid code length: ${code.length} characters`);
 
     try {
-      // 设置默认选项
-      const renderOptions = {
-        format: 'png' as const,
-        dpi: 300,
-        width: 1200,
-        height: 800,
-        backgroundColor: 'white',
-        theme: 'default' as const,
-        ...options,
-      };
+      // 确保临时目录存在
+      await this.ensureTempDir();
+      
+      // 确保输出目录存在
+      await fs.ensureDir(path.dirname(outputPath));
+      console.error(`[MCP Debug] Output directory ensured: ${path.dirname(outputPath)}`);
 
-      // 生成临时文件名
-      const tempId = uuidv4();
-      const inputFile = path.join(this.tempDir, `${tempId}.mmd`);
-      const outputFile = path.join(
-        this.tempDir,
-        `${tempId}.${renderOptions.format}`
-      );
+      // 创建临时 mermaid 文件
+      const tempMermaidFile = path.join(this.tempDir, `${uuidv4()}.mmd`);
+      await fs.writeFile(tempMermaidFile, code, 'utf8');
+      console.error(`[MCP Debug] Temp file created: ${tempMermaidFile}`);
 
-      // 写入 Mermaid 代码到临时文件
-      await fs.writeFile(inputFile, code, 'utf8');
+      // 构建 mmdc 命令
+      const command = this.buildMmdcCommand(tempMermaidFile, outputPath, options);
+      console.error(`[MCP Debug] Command: ${command}`);
+
+      // 检查 mermaid-cli 是否可用
+      try {
+        await execAsync('npx @mermaid-js/mermaid-cli --version');
+        console.error('[MCP Debug] Mermaid CLI is available');
+      } catch (versionError) {
+        console.error('[MCP Debug] Mermaid CLI version check failed:', versionError);
+        throw new Error(`Mermaid CLI not available: ${versionError instanceof Error ? versionError.message : String(versionError)}`);
+      }
 
       // 执行渲染
-      await this.executeRender(inputFile, outputFile, renderOptions);
+      const { stdout, stderr } = await execAsync(command, { 
+        timeout: 30000, // 30秒超时
+        maxBuffer: 1024 * 1024 // 1MB buffer
+      });
+      
+      if (stderr) {
+        console.error(`[MCP Debug] Command stderr: ${stderr}`);
+      }
+      if (stdout) {
+        console.error(`[MCP Debug] Command stdout: ${stdout}`);
+      }
 
       // 检查输出文件是否存在
-      if (!(await fs.pathExists(outputFile))) {
-        throw new Error('Render output file not generated');
+      if (!(await fs.pathExists(outputPath))) {
+        throw new Error(`Output file was not created at: ${outputPath}`);
       }
 
-      // 获取文件大小
-      const stats = await fs.stat(outputFile);
-      result.fileSize = stats.size;
+      // 获取文件大小信息
+      const stats = await fs.stat(outputPath);
+      console.error(`[MCP Debug] Output file size: ${stats.size} bytes`);
+      
+      let size: { width: number; height: number } | undefined;
 
-      // 处理输出路径
-      if (options.outputPath) {
-        const finalPath = path.resolve(options.outputPath);
-        await fs.ensureDir(path.dirname(finalPath));
-        await fs.move(outputFile, finalPath);
-        result.filePath = finalPath;
-      } else {
-        // 移动到默认输出目录
-        const defaultOutputDir = configManager.get('defaultOutputDir')!;
-        await fs.ensureDir(defaultOutputDir);
-        const finalPath = path.join(
-          defaultOutputDir,
-          `mermaid-${tempId}.${renderOptions.format}`
-        );
-        await fs.move(outputFile, finalPath);
-        result.filePath = finalPath;
+      if (format === 'png') {
+        // 对于 PNG，尝试获取图片尺寸（简化实现）
+        size = {
+          width: options.width || 1200,
+          height: options.height || 800,
+        };
       }
-
-      result.success = true;
 
       // 清理临时文件
-      await fs.remove(inputFile);
+      await fs.remove(tempMermaidFile).catch((cleanupError) => {
+        console.error('[MCP Debug] Failed to cleanup temp file:', cleanupError);
+      });
 
+      console.error(`[MCP Debug] Render successful in ${Date.now() - startTime}ms`);
+
+      return {
+        success: true,
+        filePath: outputPath,
+        format,
+        size,
+        renderTime: Date.now() - startTime,
+      };
     } catch (error) {
-      result.error = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[MCP Debug] Render failed: ${errorMessage}`);
+      console.error(`[MCP Debug] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
+      
+      return {
+        success: false,
+        error: `Mermaid render failed: ${errorMessage}`,
+        renderTime: Date.now() - startTime,
+      };
     }
-
-    result.renderTime = Date.now() - startTime;
-    return result;
   }
 
   /**
-   * 批量渲染 Mermaid 图表
+   * 构建 mmdc 命令
    */
-  async renderBatch(
-    codes: string[],
-    options: MermaidRenderOptions = {}
-  ): Promise<MermaidRenderResult[]> {
-    const results: MermaidRenderResult[] = [];
+  private buildMmdcCommand(inputFile: string, outputFile: string, options: MermaidRenderOptions): string {
+    const args = [
+      'npx', '@mermaid-js/mermaid-cli',
+      '-i', `"${inputFile}"`,
+      '-o', `"${outputFile}"`,
+    ];
 
-    for (const code of codes) {
-      const result = await this.renderSingle(code, options);
-      results.push(result);
+    if (options.theme) {
+      args.push('-t', options.theme);
     }
 
-    return results;
+    if (options.backgroundColor) {
+      args.push('-b', options.backgroundColor);
+    }
+
+    if (options.width) {
+      args.push('-w', options.width.toString());
+    }
+
+    if (options.height) {
+      args.push('-H', options.height.toString());
+    }
+
+    if (options.format === 'svg') {
+      args.push('-f', 'svg');
+    }
+
+    return args.join(' ');
   }
 
   /**
-   * 清理临时目录
+   * 生成输出路径
+   */
+  private generateOutputPath(format: string): string {
+    const outputDir = configManager.get('defaultOutputDir');
+    const filename = `mermaid-${uuidv4()}.${format}`;
+    return path.join(outputDir, filename);
+  }
+
+  /**
+   * 清理资源
    */
   async cleanup(): Promise<void> {
     try {
-      await fs.emptyDir(this.tempDir);
+      // 清理临时目录中的旧文件
+      const files = await fs.readdir(this.tempDir);
+      const now = Date.now();
+      const maxAge = 24 * 60 * 60 * 1000; // 24小时
+
+      for (const file of files) {
+        const filePath = path.join(this.tempDir, file);
+        const stats = await fs.stat(filePath);
+        
+        if (now - stats.mtime.getTime() > maxAge) {
+          await fs.remove(filePath).catch(() => {});
+        }
+      }
     } catch (error) {
-      console.warn('Failed to cleanup temp directory:', error);
+      console.warn('Failed to cleanup temp files:', error);
     }
   }
 }

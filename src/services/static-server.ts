@@ -1,7 +1,7 @@
-import express from 'express';
-import * as path from 'node:path';
-import { Server } from 'node:http';
+import express, { Request, Response } from 'express';
+import * as path from 'path';
 import { configManager } from '../config/index.js';
+import { Server } from 'http';
 
 /**
  * 静态文件服务器
@@ -9,39 +9,36 @@ import { configManager } from '../config/index.js';
 export class StaticFileServer {
   private app: express.Application;
   private server: Server | null = null;
-  private port: number;
-  private host: string;
+  private isServerRunning = false;
 
   constructor() {
     this.app = express();
-    this.port = configManager.get('serverPort') || 3000;
-    this.host = configManager.get('serverHost') || 'localhost';
-    this.setupRoutes();
+    this.setupMiddleware();
   }
 
   /**
-   * 设置路由
+   * 设置中间件
    */
-  private setupRoutes(): void {
+  private setupMiddleware(): void {
+    // 静态文件服务
+    const outputDir = configManager.get('defaultOutputDir');
+    this.app.use('/files', express.static(outputDir));
+
     // 健康检查
-    this.app.get('/health', (req, res) => {
+    this.app.get('/health', (req: Request, res: Response) => {
       res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
 
-    // 静态文件服务
-    const outputDir = configManager.get('defaultOutputDir')!;
-    this.app.use('/files', express.static(outputDir));
-
-    // 文件列表 API
-    this.app.get('/api/files', (req, res) => {
-      // 这里可以实现文件列表功能
-      res.json({ message: 'File listing not implemented yet' });
-    });
-
-    // 错误处理
-    this.app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-      console.error('Static server error:', err);
-      res.status(500).json({ error: 'Internal server error' });
+    // 根路径
+    this.app.get('/', (req: Request, res: Response) => {
+      res.json({
+        name: 'Mermaid Chart MCP Static Server',
+        version: '1.0.0',
+        endpoints: {
+          files: '/files',
+          health: '/health',
+        },
+      });
     });
   }
 
@@ -49,14 +46,23 @@ export class StaticFileServer {
    * 启动服务器
    */
   async start(): Promise<string> {
+    if (this.isServerRunning) {
+      return this.getBaseUrl();
+    }
+
+    const port = configManager.get('serverPort');
+    const host = configManager.get('serverHost');
+
     return new Promise((resolve, reject) => {
-      this.server = this.app.listen(this.port, this.host, () => {
-        const baseUrl = `http://${this.host}:${this.port}`;
-        console.log(`Static file server started at ${baseUrl}`);
+      this.server = this.app.listen(port, host, () => {
+        this.isServerRunning = true;
+        const baseUrl = this.getBaseUrl();
+        console.error(`Static server started at ${baseUrl}`);
         resolve(baseUrl);
       });
 
-      this.server.on('error', (error) => {
+      this.server?.on('error', (error: any) => {
+        this.isServerRunning = false;
         reject(error);
       });
     });
@@ -66,32 +72,43 @@ export class StaticFileServer {
    * 停止服务器
    */
   async stop(): Promise<void> {
-    return new Promise((resolve) => {
-      if (this.server) {
-        this.server.close(() => {
-          console.log('Static file server stopped');
-          resolve();
-        });
-      } else {
-        resolve();
-      }
-    });
-  }
+    if (!this.server || !this.isServerRunning) {
+      return;
+    }
 
-  /**
-   * 获取文件的访问 URL
-   */
-  getFileUrl(filePath: string): string {
-    const outputDir = configManager.get('defaultOutputDir')!;
-    const relativePath = path.relative(outputDir, filePath);
-    const baseUrl = `http://${this.host}:${this.port}`;
-    return `${baseUrl}/files/${relativePath.replace(/\\/g, '/')}`;
+    return new Promise((resolve) => {
+      this.server!.close(() => {
+        this.isServerRunning = false;
+        this.server = null;
+        console.error('Static server stopped');
+        resolve();
+      });
+    });
   }
 
   /**
    * 检查服务器是否运行
    */
   isRunning(): boolean {
-    return this.server !== null && this.server.listening;
+    return this.isServerRunning;
+  }
+
+  /**
+   * 获取基础URL
+   */
+  private getBaseUrl(): string {
+    const port = configManager.get('serverPort');
+    const host = configManager.get('serverHost');
+    return `http://${host}:${port}`;
+  }
+
+  /**
+   * 获取文件URL
+   */
+  getFileUrl(filePath: string): string {
+    const outputDir = configManager.get('defaultOutputDir');
+    const relativePath = path.relative(outputDir, filePath);
+    const baseUrl = this.getBaseUrl();
+    return `${baseUrl}/files/${relativePath.replace(/\\/g, '/')}`;
   }
 }
