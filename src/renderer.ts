@@ -40,20 +40,28 @@ export class MermaidRenderer {
       const {
         format = 'png',
         outputPath,
-        dpi = 300,
-        width = 1200,
-        height = 800,
+        dpi = 600,
+        width = 2400,
+        height = 1600,
         backgroundColor = 'white',
         theme = 'default'
       } = options;
 
       const page = await this.browser!.newPage();
       
-      // 设置视口大小
-      await page.setViewport({ width, height });
+      // 设置高分辨率视口，确保高清渲染
+      const scaleFactor = Math.max(2, dpi / 96);
+      const viewportWidth = Math.round(width * scaleFactor);
+      const viewportHeight = Math.round(height * scaleFactor);
+      
+      await page.setViewport({ 
+        width: viewportWidth, 
+        height: viewportHeight,
+        deviceScaleFactor: scaleFactor
+      });
 
-      // 创建HTML内容
-      const html = this.createMermaidHTML(code, theme, backgroundColor);
+      // 创建HTML内容，使用高分辨率尺寸
+      const html = this.createMermaidHTML(code, theme, backgroundColor, viewportWidth, viewportHeight);
       await page.setContent(html);
 
       // 等待Mermaid渲染完成
@@ -95,29 +103,30 @@ export class MermaidRenderer {
 
         await fs.writeFile(finalOutputPath, svgContent, 'utf8');
       } else {
-        // 截图并保存为PNG
+        // 直接截取高分辨率图片，已经通过deviceScaleFactor实现高清
         const screenshot = await svgElement.screenshot({
           type: 'png',
-          omitBackground: backgroundColor === 'transparent'
+          omitBackground: backgroundColor === 'transparent',
+          clip: {
+            x: boundingBox.x,
+            y: boundingBox.y,
+            width: boundingBox.width,
+            height: boundingBox.height
+          }
         });
 
-        if (dpi !== 96) {
-          // 使用sharp调整DPI
-          const sharpImage = sharp(screenshot);
-          const metadata = await sharpImage.metadata();
-          
-          if (metadata.width && metadata.height) {
-            const scaleFactor = dpi / 96;
-            await sharpImage
-              .resize(Math.round(metadata.width * scaleFactor), Math.round(metadata.height * scaleFactor))
-              .png({ quality: 100 })
-              .toFile(finalOutputPath);
-          } else {
-            await fs.writeFile(finalOutputPath, screenshot);
-          }
-        } else {
-          await fs.writeFile(finalOutputPath, screenshot);
-        }
+        // 使用sharp进行最终优化，保持原始高分辨率
+        await sharp(screenshot)
+          .png({ 
+            quality: 100,
+            compressionLevel: 0, // 无压缩损失
+            adaptiveFiltering: true,
+            palette: false // 使用真彩色
+          })
+          .withMetadata({
+            density: dpi // 设置正确的DPI元数据
+          })
+          .toFile(finalOutputPath);
       }
 
       await page.close();
@@ -127,8 +136,8 @@ export class MermaidRenderer {
         outputPath: finalOutputPath,
         format,
         size: {
-          width: Math.round(boundingBox.width),
-          height: Math.round(boundingBox.height)
+          width: width,
+          height: height
         }
       };
 
@@ -140,7 +149,7 @@ export class MermaidRenderer {
     }
   }
 
-  private createMermaidHTML(code: string, theme: string, backgroundColor: string): string {
+  private createMermaidHTML(code: string, theme: string, backgroundColor: string, width: number = 1200, height: number = 800): string {
     return `
 <!DOCTYPE html>
 <html>
@@ -153,12 +162,21 @@ export class MermaidRenderer {
             padding: 20px;
             background-color: ${backgroundColor};
             font-family: Arial, sans-serif;
+            width: ${width}px;
+            height: ${height}px;
         }
         #mermaid-diagram {
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            width: 100%;
+            height: 100%;
+        }
+        .mermaid svg {
+            max-width: ${width - 40}px !important;
+            max-height: ${height - 40}px !important;
+            width: auto !important;
+            height: auto !important;
         }
     </style>
 </head>
@@ -171,7 +189,14 @@ export class MermaidRenderer {
             startOnLoad: true,
             theme: '${theme}',
             securityLevel: 'loose',
-            fontFamily: 'Arial, sans-serif'
+            fontFamily: 'Arial, sans-serif',
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true
+            },
+            timeline: {
+                useMaxWidth: false
+            }
         });
     </script>
 </body>

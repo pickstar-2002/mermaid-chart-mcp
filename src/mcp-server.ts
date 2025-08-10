@@ -86,17 +86,17 @@ export class MermaidMCPServer {
                     dpi: {
                       type: 'number',
                       description: 'DPI 设置（仅对 PNG 有效）',
-                      default: 300
+                      default: 600
                     },
                     width: {
                       type: 'number',
                       description: '图片宽度',
-                      default: 1200
+                      default: 2400
                     },
                     height: {
                       type: 'number',
                       description: '图片高度',
-                      default: 800
+                      default: 1600
                     },
                     backgroundColor: {
                       type: 'string',
