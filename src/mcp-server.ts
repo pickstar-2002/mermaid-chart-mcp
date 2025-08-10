@@ -267,7 +267,13 @@ export class MermaidChartMcpServer {
 
       return { content: [result] };
     } catch (error) {
-      throw new Error(`Render failed: ${error instanceof Error ? error.message : String(error)}`);
+      // 不要抛出异常，而是返回错误结果
+      const errorResult: MermaidRenderResult = {
+        success: false,
+        error: `Render failed: ${error instanceof Error ? error.message : String(error)}`,
+        renderTime: 0,
+      };
+      return { content: [errorResult] };
     }
   }
 
@@ -310,7 +316,15 @@ export class MermaidChartMcpServer {
 
       return { content: [batchResult] };
     } catch (error) {
-      throw new Error(`Batch render failed: ${error instanceof Error ? error.message : String(error)}`);
+      // 不要抛出异常，而是返回错误结果
+      const errorResult: BatchMermaidRenderResult = {
+        results: [],
+        successCount: 0,
+        failureCount: 1,
+        totalTime: Date.now() - startTime,
+        error: `Batch render failed: ${error instanceof Error ? error.message : String(error)}`,
+      };
+      return { content: [errorResult] };
     }
   }
 
