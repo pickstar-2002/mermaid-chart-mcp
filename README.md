@@ -1,207 +1,123 @@
-# 🎨 Mermaid Chart MCP Server
+# Mermaid Chart MCP 服务器
 
-[![npm version](https://badge.fury.io/js/@pickstar-2002%2Fmermaid-chart-mcp.svg)](https://badge.fury.io/js/@pickstar-2002%2Fmermaid-chart-mcp)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/@pickstar-2002/mermaid-chart-mcp)](https://nodejs.org/)
-[![Downloads](https://img.shields.io/npm/dm/@pickstar-2002/mermaid-chart-mcp)](https://www.npmjs.com/package/@pickstar-2002/mermaid-chart-mcp)
+一个用于生成和渲染 Mermaid 图表的 Model Context Protocol (MCP) 服务器。
 
-> 🚀 A powerful Model Context Protocol (MCP) server that renders Mermaid diagrams into high-quality images with seamless AI integration.
+## 功能特性
 
-## ✨ Features
+- 生成各种类型的 Mermaid 图表
+- 将 Mermaid 代码渲染为 SVG 格式
+- 支持多种图表类型：流程图、序列图、甘特图、类图等
+- 与 MCP 兼容的客户端无缝集成
 
-- 🎯 **AI-First Design**: Seamlessly integrates with Claude Desktop and other MCP clients
-- 🖼️ **Multiple Formats**: Export to PNG, SVG, and PDF with high quality
-- 🎨 **Rich Theming**: Support for default, dark, forest, and neutral themes
-- 📊 **Comprehensive Charts**: Flowcharts, sequence diagrams, Gantt charts, class diagrams, and more
-- ⚡ **High Performance**: Optimized rendering with Puppeteer and Sharp
-- 🔧 **Zero Configuration**: Works out of the box with all dependencies included
-- 🛡️ **Type Safe**: Built with TypeScript for reliability
-
-## � Installation
-
-### For Claude Desktop (Recommended)
+## 安装
 
 ```bash
-npm install -g @pickstar-2002/mermaid-chart-mcp@latest
+npm install -g mermaid-chart-mcp
 ```
 
-### For Development
+## 使用方法
 
-```bash
-npm install @pickstar-2002/mermaid-chart-mcp@latest
-```
+### 作为 MCP 服务器
 
-## 🚀 Quick Start
-
-### Claude Desktop Configuration
-
-Add this to your Claude Desktop config file:
-
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`  
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+在你的 MCP 客户端配置中添加此服务器：
 
 ```json
 {
   "mcpServers": {
     "mermaid-chart": {
-      "command": "npx",
-      "args": ["@pickstar-2002/mermaid-chart-mcp@latest"]
+      "command": "mermaid-chart-mcp",
+      "args": []
     }
   }
 }
 ```
 
-### Other MCP Clients
+### 可用工具
 
-```json
+#### `generate_mermaid_chart`
+
+生成指定类型的 Mermaid 图表代码。
+
+**参数：**
+- `type` (string): 图表类型（flowchart、sequence、gantt、class、state、pie、journey、gitgraph、mindmap、timeline、quadrant、requirement、c4context）
+- `description` (string): 图表描述或要求
+- `data` (object, 可选): 用于生成图表的结构化数据
+
+**示例：**
+```javascript
 {
-  "mcpServers": {
-    "mermaid-chart": {
-      "command": "node",
-      "args": ["node_modules/@pickstar-2002/mermaid-chart-mcp/dist/index.js"]
-    }
+  "type": "flowchart",
+  "description": "创建一个显示用户登录流程的流程图",
+  "data": {
+    "steps": ["开始", "输入凭据", "验证", "成功/失败", "结束"]
   }
 }
 ```
 
-## 📖 Usage
+#### `render_mermaid_svg`
 
-Once configured, you can use the MCP tool in your AI conversations:
+将 Mermaid 代码渲染为 SVG 格式。
 
-### Basic Example
+**参数：**
+- `mermaidCode` (string): 要渲染的 Mermaid 代码
+- `theme` (string, 可选): 主题（default、dark、forest、neutral）
+- `backgroundColor` (string, 可选): 背景颜色
 
-```json
+**示例：**
+```javascript
 {
-  "tool": "render_mermaid_chart",
-  "arguments": {
-    "mermaidCode": "graph TD\n    A[Start] --> B[Process]\n    B --> C[End]",
-    "outputPath": "./diagrams/flowchart.png"
-  }
+  "mermaidCode": "graph TD\n    A[开始] --> B[处理]\n    B --> C[结束]",
+  "theme": "default",
+  "backgroundColor": "white"
 }
 ```
 
-### Advanced Configuration
+## 支持的图表类型
 
-```json
-{
-  "tool": "render_mermaid_chart",
-  "arguments": {
-    "mermaidCode": "sequenceDiagram\n    participant User\n    participant System\n    User->>System: Request\n    System-->>User: Response",
-    "outputPath": "./diagrams/sequence.svg",
-    "format": "svg",
-    "width": 1400,
-    "height": 1000,
-    "theme": "dark",
-    "backgroundColor": "#1e1e1e"
-  }
-}
-```
+- **flowchart**: 流程图
+- **sequence**: 序列图
+- **gantt**: 甘特图
+- **class**: 类图
+- **state**: 状态图
+- **pie**: 饼图
+- **journey**: 用户旅程图
+- **gitgraph**: Git 图
+- **mindmap**: 思维导图
+- **timeline**: 时间线
+- **quadrant**: 象限图
+- **requirement**: 需求图
+- **c4context**: C4 上下文图
 
-## �️ API Reference
+## 开发
 
-### `render_mermaid_chart`
-
-Renders Mermaid code into high-quality images.
-
-#### Parameters
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `mermaidCode` | string | ✅ | - | The Mermaid diagram code |
-| `outputPath` | string | ✅ | - | Output file path with extension |
-| `format` | string | ❌ | `"png"` | Output format: `png`, `svg`, `pdf` |
-| `width` | number | ❌ | `1200` | Image width in pixels |
-| `height` | number | ❌ | `800` | Image height in pixels |
-| `theme` | string | ❌ | `"default"` | Theme: `default`, `dark`, `forest`, `neutral` |
-| `backgroundColor` | string | ❌ | `"white"` | Background color |
-
-## 📊 Supported Diagram Types
-
-| Type | Description | Example Use Case |
-|------|-------------|------------------|
-| 📈 **Flowchart** | Process flows and decision trees | Business processes, algorithms |
-| 🔄 **Sequence Diagram** | System interactions over time | API calls, user workflows |
-| 📅 **Gantt Chart** | Project timelines and schedules | Project planning, milestones |
-| 🏗️ **Class Diagram** | Object-oriented design | Software architecture, data models |
-| 📊 **XY Chart** | Data visualization | Performance metrics, comparisons |
-| 🔀 **State Diagram** | State transitions | UI states, workflow states |
-| 🗺️ **User Journey** | User experience mapping | UX design, customer flows |
-
-## 🔧 Development
-
-### Local Setup
+### 构建
 
 ```bash
-# Clone the repository
-git clone https://github.com/pickstar-2002/mermaid-chart-mcp.git
-cd mermaid-chart-mcp
-
-# Install dependencies
-npm install
-
-# Build the project
 npm run build
-
-# Start the MCP server
-npm start
 ```
 
-### Project Structure
+### 测试
 
-```
-mermaid-chart-mcp/
-├── src/
-│   ├── index.ts          # MCP server implementation
-│   └── renderer.ts       # Mermaid rendering engine
-├── dist/                 # Compiled JavaScript
-├── bin/                  # Executable scripts
-└── examples/             # Example Mermaid files
-```
-
-## � Troubleshooting
-
-### Common Issues
-
-**Puppeteer Download Issues**
 ```bash
-npm config set puppeteer_download_host=https://npm.taobao.org/mirrors
-npm install
+npm test
 ```
 
-**Permission Errors**
-- Ensure output directory has write permissions
-- On Windows, run as administrator if needed
+### 开发模式
 
-**Memory Issues**
 ```bash
-node --max-old-space-size=4096 node_modules/@pickstar-2002/mermaid-chart-mcp/dist/index.js
+npm run dev
 ```
 
-## 🤝 Contributing
+## 许可证
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+MIT
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## 贡献
 
-## 📄 License
+欢迎提交 Pull Request 和 Issue！
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 更新日志
 
-## 🙋‍♂️ Support & Contact
-
-- 📧 **Issues**: [GitHub Issues](https://github.com/pickstar-2002/mermaid-chart-mcp/issues)
-- � **Discussions**: [GitHub Discussions](https://github.com/pickstar-2002/mermaid-chart-mcp/discussions)
-- 🌐 **Repository**: [GitHub](https://github.com/pickstar-2002/mermaid-chart-mcp)
-- 📦 **NPM Package**: [@pickstar-2002/mermaid-chart-mcp](https://www.npmjs.com/package/@pickstar-2002/mermaid-chart-mcp)
-
----
-
-**微信: pickstar_loveXX**
-
----
-
-*Built with ❤️ by pickstar-2002*
+### v1.0.0
+- 初始版本
+- 支持基本的 Mermaid 图表生成和渲染功能
