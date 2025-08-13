@@ -1,44 +1,66 @@
 {
   "name": "@pickstar-2002/mermaid-chart-mcp",
-  "version": "2.1.1",
-  "description": "MCP server for rendering Mermaid charts to images",
+  "version": "1.0.0",
+  "description": "🎨 A Model Context Protocol (MCP) server for rendering Mermaid charts to high-quality images",
   "main": "dist/index.js",
   "bin": {
-    "mermaid-chart-mcp": "dist/index.js"
+    "mermaid-chart-mcp": "./bin/mermaid-chart-mcp.js"
   },
+  "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/index.ts",
+    "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "prepublishOnly": "npm run build"
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "prepare": "npm run build"
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "mermaid",
     "chart",
     "diagram",
-    "ai"
+    "image-generation",
+    "flowchart",
+    "sequence-diagram",
+    "gantt-chart",
+    "graph-visualization",
+    "ai-tools",
+    "claude"
   ],
   "author": "pickstar-2002",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pickstar-2002/mermaid-chart-mcp.git"
+  },
+  "homepage": "https://github.com/pickstar-2002/mermaid-chart-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/pickstar-2002/mermaid-chart-mcp/issues"
+  },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.5.0",
-    "mermaid": "^10.9.1",
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "puppeteer": "^21.11.0",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
     "sharp": "^0.33.2",
-    "uuid": "^9.0.1"
+    "fs-extra": "^11.2.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.17",
-    "@types/express": "^4.17.21",
-    "@types/cors": "^2.8.17",
-    "@types/uuid": "^9.0.8",
-    "typescript": "^5.3.3",
-    "tsx": "^4.7.1"
+    "@types/node": "^20.11.0",
+    "@types/fs-extra": "^11.0.4",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0"
   },
   "engines": {
-    "node": ">=18"
-  }
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ]
 }
