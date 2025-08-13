@@ -41,6 +41,8 @@ export class MermaidRenderer {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
+          '--force-device-scale-factor=2', // 高DPI渲染
+          '--high-dpi-support',
         ],
       });
     }
@@ -70,8 +72,12 @@ export class MermaidRenderer {
       const browser = await this.initBrowser();
       const page = await browser.newPage();
 
-      // 设置视口大小
-      await page.setViewport({ width, height });
+      // 设置高分辨率视口和设备像素比
+      await page.setViewport({ 
+        width, 
+        height,
+        deviceScaleFactor: 2, // 设置设备像素比为2，提高PNG渲染质量
+      });
 
       // 创建 HTML 内容
       const htmlContent = this.createHtmlContent(mermaidCode, theme, backgroundColor);
@@ -159,14 +165,29 @@ export class MermaidRenderer {
             securityLevel: 'loose',
             flowchart: {
                 useMaxWidth: true,
-                htmlLabels: true
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 15
             },
             sequence: {
-                useMaxWidth: true
+                useMaxWidth: true,
+                diagramMarginX: 50,
+                diagramMarginY: 10,
+                actorMargin: 50,
+                width: 150,
+                height: 65,
+                boxMargin: 10,
+                boxTextMargin: 5,
+                noteMargin: 10,
+                messageMargin: 35
             },
             gantt: {
-                useMaxWidth: true
-            }
+                useMaxWidth: true,
+                fontSize: 11,
+                fontFamily: 'Microsoft YaHei'
+            },
+            fontFamily: 'Microsoft YaHei, SimHei, Arial, sans-serif',
+            fontSize: 14
         });
         
         // 手动渲染图表
@@ -207,20 +228,31 @@ export class MermaidRenderer {
       throw new Error('无法找到生成的 SVG 元素');
     }
 
-    // 截取 SVG 元素的截图
+    // 截取 SVG 元素的截图，使用高质量设置
     const screenshot = await svgElement.screenshot({
       type: 'png',
       omitBackground: false,
+      clip: undefined, // 让Puppeteer自动检测边界
     });
 
-    // 使用 Sharp 处理图像
+    // 使用 Sharp 处理图像，提高质量
     const processedImage = await sharp(screenshot)
-      .resize(width, height, {
+      .resize(width * 2, height * 2, { // 先放大2倍提高质量
         fit: 'inside',
         withoutEnlargement: false,
         background: 'white',
       })
-      .png({ quality: 100 })
+      .resize(width, height, { // 再缩小到目标尺寸，实现抗锯齿效果
+        fit: 'inside',
+        withoutEnlargement: false,
+        kernel: sharp.kernel.lanczos3, // 使用高质量缩放算法
+      })
+      .png({ 
+        quality: 100,
+        compressionLevel: 0, // 不压缩，保持最高质量
+        adaptiveFiltering: false,
+        force: true
+      })
       .toBuffer();
 
     await fs.writeFile(outputPath, processedImage);
