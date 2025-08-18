@@ -2,6 +2,7 @@ import puppeteer, { Browser, Page } from 'puppeteer';
 import fs from 'fs-extra';
 import { dirname } from 'path';
 import sharp from 'sharp';
+import { MinIOUploader, UploadResult, createDefaultMinIOConfig } from './minio-uploader.js';
 
 export interface RenderOptions {
   mermaidCode: string;
@@ -11,6 +12,8 @@ export interface RenderOptions {
   height?: number;
   backgroundColor?: string;
   theme?: 'default' | 'dark' | 'forest' | 'neutral';
+  uploadToMinio?: boolean; // 是否上传到MinIO
+  minioExpiryDays?: number; // MinIO文件有效期（天数），默认7天，最大30天
 }
 
 export interface RenderResult {
@@ -18,6 +21,8 @@ export interface RenderResult {
   format: string;
   width: number;
   height: number;
+  minioUrl?: string; // 新增：MinIO访问链接
+  uploadResult?: UploadResult; // 新增：上传结果详情
 }
 
 /**
@@ -61,6 +66,8 @@ export class MermaidRenderer {
       height = 800,
       backgroundColor = 'white',
       theme = 'default',
+      uploadToMinio = false,
+      minioExpiryDays = 7,
     } = options;
 
     try {
@@ -79,21 +86,55 @@ export class MermaidRenderer {
         deviceScaleFactor: 2, // 设置设备像素比为2，提高PNG渲染质量
       });
 
+      // 增加页面错误监听
+      page.on('console', msg => {
+        if (msg.type() === 'error') {
+          console.error('页面控制台错误:', msg.text());
+        }
+      });
+
+      page.on('pageerror', error => {
+        console.error('页面运行时错误:', error);
+      });
+
       // 创建 HTML 内容
       const htmlContent = this.createHtmlContent(mermaidCode, theme, backgroundColor);
 
       // 加载 HTML 内容
-      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      console.log('加载HTML内容...');
+      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-      // 等待 Mermaid 渲染完成
-      await page.waitForSelector('#mermaid-diagram', { timeout: 60000 });
-      await page.waitForFunction(
-        () => {
-          const element = document.querySelector('#mermaid-diagram');
-          return element && element.getAttribute('data-rendered') === 'true';
-        },
-        { timeout: 60000 }
-      );
+      // 等待 Mermaid 渲染完成，增加更长的超时时间
+      console.log('等待Mermaid渲染...');
+      try {
+        await page.waitForSelector('#mermaid-diagram', { timeout: 30000 });
+        
+        // 检查是否渲染成功
+        const isRendered = await page.waitForFunction(
+          () => {
+            const element = document.querySelector('#mermaid-diagram');
+            const hasRendered = element && element.getAttribute('data-rendered') === 'true';
+            const hasSvg = element && element.querySelector('svg');
+            console.log('渲染状态检查:', { hasRendered, hasSvg });
+            return hasRendered || hasSvg; // 任一条件满足即可
+          },
+          { timeout: 60000, polling: 1000 }
+        );
+        
+        console.log('Mermaid渲染完成');
+      } catch (timeoutError) {
+        // 如果超时，尝试获取页面状态信息
+        const pageContent = await page.content();
+        console.error('渲染超时，页面内容:', pageContent.substring(0, 500));
+        
+        const diagramElement = await page.$('#mermaid-diagram');
+        if (diagramElement) {
+          const innerHTML = await page.evaluate(el => el.innerHTML, diagramElement);
+          console.error('图表元素内容:', innerHTML);
+        }
+        
+        throw new Error(`Mermaid渲染超时: ${timeoutError instanceof Error ? timeoutError.message : String(timeoutError)}`);
+      }
 
       // 根据格式渲染
       if (format === 'svg') {
@@ -106,12 +147,38 @@ export class MermaidRenderer {
 
       await page.close();
 
-      return {
+      // 基础渲染结果
+      const result: RenderResult = {
         outputPath,
         format,
         width,
         height,
       };
+
+      // 如果需要上传到MinIO
+      if (uploadToMinio) {
+        try {
+          const minioUploader = new MinIOUploader(createDefaultMinIOConfig());
+          await minioUploader.initialize();
+          
+          const uploadResult = await minioUploader.uploadFile(outputPath, {
+            expiryDays: minioExpiryDays
+          });
+          
+          result.uploadResult = uploadResult;
+          if (uploadResult.success && uploadResult.url) {
+            result.minioUrl = uploadResult.url;
+          }
+        } catch (minioError) {
+          console.error('MinIO上传失败:', minioError);
+          result.uploadResult = {
+            success: false,
+            error: `MinIO上传失败: ${minioError instanceof Error ? minioError.message : String(minioError)}`
+          };
+        }
+      }
+
+      return result;
     } catch (error) {
       throw new Error(`渲染失败: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -121,13 +188,13 @@ export class MermaidRenderer {
    * 创建包含 Mermaid 图表的 HTML 内容
    */
   private createHtmlContent(mermaidCode: string, theme: string, backgroundColor: string): string {
-    return `
-<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mermaid Chart</title>
-    <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <script src="https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -137,7 +204,9 @@ export class MermaidRenderer {
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Microsoft YaHei', 'SimHei', 'Arial', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         #mermaid-diagram {
             max-width: 100%;
@@ -145,6 +214,17 @@ export class MermaidRenderer {
         }
         .mermaid {
             background-color: ${backgroundColor};
+        }
+        svg text {
+            font-family: 'Microsoft YaHei', 'SimHei', 'Arial', sans-serif !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+        }
+        svg .node rect,
+        svg .node circle,
+        svg .node ellipse,
+        svg .node polygon {
+            stroke-width: 2px !important;
         }
         #loading {
             display: none;
@@ -154,7 +234,7 @@ export class MermaidRenderer {
 <body>
     <div id="loading">Loading Mermaid...</div>
     <div id="mermaid-diagram" class="mermaid">
-        ${mermaidCode}
+${mermaidCode}
     </div>
     <script>
         console.log('Mermaid script loaded');
@@ -190,7 +270,6 @@ export class MermaidRenderer {
             fontSize: 14
         });
         
-        // 手动渲染图表
         async function renderDiagram() {
             try {
                 console.log('Starting mermaid render');
@@ -199,15 +278,16 @@ export class MermaidRenderer {
                     nodes: [element]
                 });
                 console.log('Mermaid render completed');
-                // 添加一个标记表示渲染完成
-                element.setAttribute('data-rendered', 'true');
+                if (element) {
+                    element.setAttribute('data-rendered', 'true');
+                }
             } catch (error) {
                 console.error('Mermaid render error:', error);
-                document.body.innerHTML = '<div style="color: red;">Render Error: ' + error.message + '</div>';
+                const errorMsg = error && error.message ? error.message : 'Unknown error';
+                document.body.innerHTML = '<div style="color: red;">Render Error: ' + errorMsg + '</div>';
             }
         }
         
-        // 等待 DOM 加载完成后渲染
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', renderDiagram);
         } else {

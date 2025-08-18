@@ -78,6 +78,18 @@ class MermaidChartMCPServer {
                   description: 'Mermaid 主题，默认为 default',
                   default: 'default',
                 },
+                uploadToMinio: {
+                  type: 'boolean',
+                  description: '是否上传到MinIO存储并返回在线链接，默认为 false',
+                  default: false,
+                },
+                minioExpiryDays: {
+                  type: 'number',
+                  description: 'MinIO文件有效期（天数），默认7天，最大30天，超过30天按30天计算',
+                  default: 7,
+                  minimum: 1,
+                  maximum: 30,
+                },
               },
               required: ['mermaidCode', 'outputPath'],
             },
@@ -100,6 +112,8 @@ class MermaidChartMCPServer {
             height = 800,
             backgroundColor = 'white',
             theme = 'default',
+            uploadToMinio = false,
+            minioExpiryDays = 7,
           } = args as {
             mermaidCode: string;
             outputPath: string;
@@ -108,6 +122,8 @@ class MermaidChartMCPServer {
             height?: number;
             backgroundColor?: string;
             theme?: 'default' | 'dark' | 'forest' | 'neutral';
+            uploadToMinio?: boolean;
+            minioExpiryDays?: number;
           };
 
           // 验证必需参数
@@ -124,13 +140,15 @@ class MermaidChartMCPServer {
             height,
             backgroundColor,
             theme,
+            uploadToMinio,
+            minioExpiryDays,
           });
 
           return {
             content: [
               {
                 type: 'text',
-                text: `成功渲染 Mermaid 图表!\n路径: ${result.outputPath}\n格式: ${result.format}\n尺寸: ${result.width}x${result.height}`,
+                text: this.formatRenderResult(result),
               },
             ],
           };
@@ -150,6 +168,35 @@ class MermaidChartMCPServer {
 
       throw new Error(`未知工具: ${name}`);
     });
+  }
+
+  /**
+   * 格式化渲染结果消息
+   */
+  private formatRenderResult(result: any): string {
+    let message = `成功渲染 Mermaid 图表!\n路径: ${result.outputPath}\n格式: ${result.format}\n尺寸: ${result.width}x${result.height}`;
+    
+    if (result.minioUrl) {
+      message += `\n📁 MinIO链接: ${result.minioUrl}`;
+      if (result.uploadResult?.fileName) {
+        message += `\n📄 文件名: ${result.uploadResult.fileName}`;
+      }
+      if (result.uploadResult?.size) {
+        message += `\n📊 文件大小: ${(result.uploadResult.size / 1024).toFixed(2)} KB`;
+      }
+      if (result.uploadResult?.expiryDays) {
+        message += `\n⏰ 有效期: ${result.uploadResult.expiryDays}天`;
+      }
+      if (result.uploadResult?.expiresAt) {
+        message += `\n📅 过期时间: ${new Date(result.uploadResult.expiresAt).toLocaleString('zh-CN')}`;
+      }
+    }
+    
+    if (result.uploadResult && !result.uploadResult.success) {
+      message += `\n❌ MinIO上传失败: ${result.uploadResult.error}`;
+    }
+    
+    return message;
   }
 
   async start(): Promise<void> {
