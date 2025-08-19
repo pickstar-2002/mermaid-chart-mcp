@@ -319,8 +319,8 @@ export class MinIOUploader {
 export function createDefaultMinIOConfig(): MinIOConfig {
   return {
     endPoint: 'minio.pickstar.site',
-    port: 443,
-    useSSL: true,
+    port: 80,
+    useSSL: false,
     accessKey: 'pickstar',
     secretKey: 'pickstar-khazix',
     bucketName: 'mermaid-charts'
