@@ -185,10 +185,13 @@ export class MinIOUploader {
 
   /**
    * 生成公开访问URL
+   * 根据 minio.pickstar.site:9000 配置生成访问链接
    */
   private getPublicUrl(fileName: string): string {
     const protocol = this.config.useSSL ? 'https' : 'http';
-    const port = this.config.port === 80 || this.config.port === 443 ? '' : `:${this.config.port}`;
+    // 对于MinIO服务，通常需要包含端口号
+    const port = (this.config.port === 80 && !this.config.useSSL) || 
+                 (this.config.port === 443 && this.config.useSSL) ? '' : `:${this.config.port}`;
     return `${protocol}://${this.config.endPoint}${port}/${this.bucketName}/${fileName}`;
   }
 
@@ -315,12 +318,13 @@ export class MinIOUploader {
 
 /**
  * 创建默认MinIO配置
+ * 基于 minio.pickstar.site 云服务器部署
  */
 export function createDefaultMinIOConfig(): MinIOConfig {
   return {
     endPoint: 'minio.pickstar.site',
-    port: 443,
-    useSSL: true,
+    port: 9000,
+    useSSL: true, // 如果您的域名有SSL证书，保持true；否则改为false
     accessKey: 'pickstar',
     secretKey: 'pickstar-khazix',
     bucketName: 'mermaid-charts'

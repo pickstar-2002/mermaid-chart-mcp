@@ -1,10 +1,10 @@
 {
   "name": "@pickstar-2002/mermaid-chart-mcp",
-  "version": "3.1.0",
+  "version": "4.0.1",
   "description": "🎨 A Model Context Protocol (MCP) server for rendering Mermaid charts to high-quality images",
   "main": "dist/index.js",
   "bin": {
-    "mermaid-chart-mcp": "./bin/mermaid-chart-mcp.js"
+    "mermaid-chart-mcp": "bin/mermaid-chart-mcp.js"
   },
   "type": "module",
   "scripts": {
@@ -33,7 +33,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pickstar-2002/mermaid-chart-mcp.git"
+    "url": "git+https://github.com/pickstar-2002/mermaid-chart-mcp.git"
   },
   "homepage": "https://github.com/pickstar-2002/mermaid-chart-mcp#readme",
   "bugs": {
