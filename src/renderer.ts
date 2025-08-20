@@ -158,7 +158,9 @@ export class MermaidRenderer {
       // 如果需要上传到MinIO
       if (uploadToMinio) {
         try {
-          const minioUploader = new MinIOUploader(createDefaultMinIOConfig());
+          console.log('🔄 开始MinIO上传...');
+          const minioConfig = createDefaultMinIOConfig();
+          const minioUploader = new MinIOUploader(minioConfig);
           await minioUploader.initialize();
           
           const uploadResult = await minioUploader.uploadFile(outputPath, {
@@ -168,9 +170,12 @@ export class MermaidRenderer {
           result.uploadResult = uploadResult;
           if (uploadResult.success && uploadResult.url) {
             result.minioUrl = uploadResult.url;
+            console.log('✅ MinIO上传成功');
+          } else {
+            console.error('❌ MinIO上传失败:', uploadResult.error);
           }
         } catch (minioError) {
-          console.error('MinIO上传失败:', minioError);
+          console.error('❌ MinIO上传过程中发生错误:', minioError);
           result.uploadResult = {
             success: false,
             error: `MinIO上传失败: ${minioError instanceof Error ? minioError.message : String(minioError)}`
