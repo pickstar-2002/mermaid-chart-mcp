@@ -44,12 +44,15 @@ export class MinIOUploader {
     
     // 针对nginx反向代理的HTTPS配置
     const httpsAgent = new https.Agent({
-      rejectUnauthorized: true, // 启用SSL验证（安全）
-      timeout: 30000, // 30秒超时
+      rejectUnauthorized: false, // 暂时禁用SSL验证以解决证书问题
+      timeout: 60000, // 增加到60秒超时
       keepAlive: true, // 启用keep-alive提高性能
       keepAliveMsecs: 1000,
-      maxSockets: 10,
-      maxFreeSockets: 10,
+      maxSockets: 5, // 减少并发连接数
+      maxFreeSockets: 2,
+      // 添加更多SSL选项
+      secureProtocol: 'TLSv1_2_method',
+      ciphers: 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384',
     });
     
     this.client = new Minio.Client({
@@ -70,11 +73,25 @@ export class MinIOUploader {
    */
   async testConnection(): Promise<boolean> {
     try {
-      await this.client.listBuckets();
-      console.log('MinIO连接测试成功');
+      console.log(`正在测试MinIO连接: ${this.config.useSSL ? 'https' : 'http'}://${this.config.endPoint}:${this.config.port}`);
+      console.log(`访问密钥: ${this.config.accessKey}`);
+      console.log(`存储桶: ${this.config.bucketName}`);
+      
+      const buckets = await this.client.listBuckets();
+      console.log('MinIO连接测试成功，可用存储桶:', buckets.map(b => b.name));
       return true;
     } catch (error) {
       console.error('MinIO连接测试失败:', error);
+      console.error('错误详情:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        config: {
+          endPoint: this.config.endPoint,
+          port: this.config.port,
+          useSSL: this.config.useSSL,
+          bucketName: this.config.bucketName
+        }
+      });
       return false;
     }
   }
@@ -84,16 +101,20 @@ export class MinIOUploader {
    */
   async initialize(): Promise<void> {
     try {
+      console.log('开始初始化MinIO连接...');
+      
       // 先测试连接
       const connected = await this.testConnection();
       if (!connected) {
         throw new Error('无法连接到MinIO服务器');
       }
 
+      console.log(`检查存储桶是否存在: ${this.bucketName}`);
       // 检查存储桶是否存在
       const bucketExists = await this.client.bucketExists(this.bucketName);
       
       if (!bucketExists) {
+        console.log(`存储桶不存在，正在创建: ${this.bucketName}`);
         // 创建存储桶
         await this.client.makeBucket(this.bucketName, this.config.region || 'us-east-1');
         console.log(`已创建存储桶: ${this.bucketName}`);
@@ -115,6 +136,7 @@ export class MinIOUploader {
         };
         
         try {
+          console.log('正在设置存储桶策略...');
           await this.client.setBucketPolicy(this.bucketName, JSON.stringify(policy));
           console.log(`已设置存储桶 ${this.bucketName} 为公开读取`);
         } catch (policyError) {
@@ -123,8 +145,21 @@ export class MinIOUploader {
       } else {
         console.log(`存储桶 ${this.bucketName} 已存在`);
       }
+      
+      console.log('MinIO初始化成功！');
     } catch (error) {
       console.error('MinIO初始化失败:', error);
+      console.error('错误详情:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        config: {
+          endPoint: this.config.endPoint,
+          port: this.config.port,
+          useSSL: this.config.useSSL,
+          bucketName: this.config.bucketName,
+          region: this.config.region
+        }
+      });
       throw new Error(`MinIO初始化失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -178,6 +213,8 @@ export class MinIOUploader {
    */
   private async doUpload(filePath: string, options?: UploadOptions): Promise<UploadResult> {
     try {
+      console.log(`开始上传文件: ${filePath}`);
+      
       // 处理参数
       const { customFileName, expiryDays: inputExpiryDays } = options || {};
       
@@ -198,6 +235,7 @@ export class MinIOUploader {
       
       // 检查文件是否存在
       if (!await fs.pathExists(filePath)) {
+        console.error(`文件不存在: ${filePath}`);
         return {
           success: false,
           error: `文件不存在: ${filePath}`
@@ -209,14 +247,20 @@ export class MinIOUploader {
       const originalName = basename(filePath);
       const fileExtension = extname(originalName);
       
+      console.log(`文件信息: ${originalName}, 大小: ${fileStats.size} bytes`);
+      
       // 生成唯一的文件名
       const fileName = customFileName || `mermaid-${uuidv4()}${fileExtension}`;
+      console.log(`生成文件名: ${fileName}`);
       
       // 确定MIME类型
       const mimeType = this.getMimeType(fileExtension);
+      console.log(`MIME类型: ${mimeType}`);
       
       // 读取文件
       const fileStream = fs.createReadStream(filePath);
+      
+      console.log(`正在上传到存储桶 ${this.bucketName}...`);
       
       // 上传文件 - 添加更多元数据
       const uploadInfo = await this.client.putObject(
@@ -235,13 +279,17 @@ export class MinIOUploader {
         }
       );
 
+      console.log('上传完成，ETag:', uploadInfo.etag);
+
       // 生成访问URL
       const publicUrl = this.getPublicUrl(fileName);
+      console.log(`生成访问URL: ${publicUrl}`);
 
       // 验证上传是否成功
       try {
-        await this.client.statObject(this.bucketName, fileName);
-        console.log(`文件上传并验证成功: ${fileName}, URL: ${publicUrl}, 有效期: ${expiryDays}天`);
+        console.log('验证文件是否上传成功...');
+        const objStat = await this.client.statObject(this.bucketName, fileName);
+        console.log(`文件上传并验证成功: ${fileName}, 大小: ${objStat.size}, URL: ${publicUrl}, 有效期: ${expiryDays}天`);
       } catch (verifyError) {
         console.warn('上传后验证失败，但文件可能已上传成功:', verifyError);
       }
@@ -257,6 +305,14 @@ export class MinIOUploader {
 
     } catch (error) {
       console.error('文件上传失败:', error);
+      console.error('上传错误详情:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        code: (error as any)?.code,
+        statusCode: (error as any)?.statusCode,
+        region: (error as any)?.region,
+        bucketName: this.bucketName
+      });
       return {
         success: false,
         error: `上传失败: ${error instanceof Error ? error.message : String(error)}`
@@ -563,7 +619,7 @@ export function createDirectMinIOConfig(): MinIOConfig {
   return {
     endPoint: '124.222.230.153',
     port: 9000, // MinIO默认端口
-    useSSL: false, // 直连IP通常不使用SSL
+    useSSL: true, // 修复：使用 HTTPS 协议
     accessKey: 'khazixminio',
     secretKey: 'khazixminio',
     bucketName: 'mermaid-charts',
