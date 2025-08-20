@@ -524,7 +524,16 @@ export class MinIOUploader {
   async getFileTags(fileName: string): Promise<{ [key: string]: string } | null> {
     try {
       const tags = await this.client.getObjectTagging(this.bucketName, fileName);
-      return tags;
+      // 将 MinIO 的 Tag[] 格式转换为 { [key: string]: string } 格式
+      const tagMap: { [key: string]: string } = {};
+      if (Array.isArray(tags)) {
+        tags.forEach((tag: any) => {
+          if (tag.Key && tag.Value) {
+            tagMap[tag.Key] = tag.Value;
+          }
+        });
+      }
+      return tagMap;
     } catch (error) {
       console.error('获取文件标签失败:', error);
       return null;
