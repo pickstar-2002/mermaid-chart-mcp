@@ -1,5 +1,6 @@
 import * as Minio from 'minio';
 import * as https from 'https';
+import * as http from 'http';
 import fs from 'fs-extra';
 import { basename, extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -42,29 +43,22 @@ export class MinIOUploader {
     this.config = config;
     this.bucketName = config.bucketName;
     
-    // 针对nginx反向代理的HTTPS配置
-    const httpsAgent = new https.Agent({
-      rejectUnauthorized: false, // 暂时禁用SSL验证以解决证书问题
-      timeout: 60000, // 增加到60秒超时
-      keepAlive: true, // 启用keep-alive提高性能
-      keepAliveMsecs: 1000,
-      maxSockets: 5, // 减少并发连接数
-      maxFreeSockets: 2,
-      // 添加更多SSL选项
-      secureProtocol: 'TLSv1_2_method',
-      ciphers: 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384',
+    console.log('MinIO配置:', {
+      endPoint: config.endPoint,
+      port: config.port,
+      useSSL: config.useSSL,
+      bucketName: config.bucketName,
+      region: config.region
     });
     
+    // 简化配置，先不使用自定义Agent
     this.client = new Minio.Client({
       endPoint: config.endPoint,
       port: config.port,
       useSSL: config.useSSL,
       accessKey: config.accessKey,
       secretKey: config.secretKey,
-      transportAgent: httpsAgent,
       region: config.region || 'us-east-1',
-      // 针对nginx反向代理的路径样式
-      pathStyle: false,
     });
   }
 
@@ -77,7 +71,14 @@ export class MinIOUploader {
       console.log(`访问密钥: ${this.config.accessKey}`);
       console.log(`存储桶: ${this.config.bucketName}`);
       
-      const buckets = await this.client.listBuckets();
+      // 添加超时控制
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('连接超时 (30秒)')), 30000);
+      });
+      
+      const connectPromise = this.client.listBuckets();
+      
+      const buckets = await Promise.race([connectPromise, timeoutPromise]) as any[];
       console.log('MinIO连接测试成功，可用存储桶:', buckets.map(b => b.name));
       return true;
     } catch (error) {
@@ -85,6 +86,11 @@ export class MinIOUploader {
       console.error('错误详情:', {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined,
+        code: (error as any)?.code,
+        errno: (error as any)?.errno,
+        syscall: (error as any)?.syscall,
+        hostname: (error as any)?.hostname,
         config: {
           endPoint: this.config.endPoint,
           port: this.config.port,
@@ -619,9 +625,9 @@ export function createDirectMinIOConfig(): MinIOConfig {
   return {
     endPoint: '124.222.230.153',
     port: 9000, // MinIO默认端口
-    useSSL: true, // 修复：使用 HTTPS 协议
-    accessKey: 'khazixminio',
-    secretKey: 'khazixminio',
+    useSSL: false, // 不使用SSL，直连HTTP
+    accessKey: 'khazix', // 修正为正确的用户名
+    secretKey: 'khazixminio', // 密码保持不变
     bucketName: 'mermaid-charts',
     region: 'us-east-1'
   };
@@ -631,7 +637,7 @@ export function createDirectMinIOConfig(): MinIOConfig {
  * 创建默认配置（兼容原有接口）
  */
 export function createDefaultMinIOConfig(): MinIOConfig {
-  return createMinIOConfig();
+  return createDirectMinIOConfig(); // 回到直连配置，使用HTTP
 }
 
 // 使用示例：

@@ -1,6 +1,6 @@
 {
   "name": "@pickstar-2002/mermaid-chart-mcp",
-  "version": "4.4.1",
+  "version": "4.4.7",
   "description": "🎨 A Model Context Protocol (MCP) server for rendering Mermaid charts to high-quality images",
   "main": "dist/index.js",
   "bin": {
